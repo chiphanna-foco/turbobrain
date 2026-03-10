@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TurboBrain Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f9fafb;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 30px 20px; }
+        h1 { font-size: 1.6rem; font-weight: 700; color: #1a1a1a; }
+        .subtitle { color: #666; font-size: 0.95rem; margin-top: 2px; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 30px;
+            margin-top: 25px;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .tab {
+            padding: 10px 0;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: #6b7280;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tab:hover { color: #111; }
+        .tab.active { color: #6366f1; border-bottom-color: #6366f1; }
+        .tab-badge {
+            background: #ef4444;
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        /* Section headers */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .section-title { font-size: 1.1rem; font-weight: 600; }
+        .refresh-link {
+            color: #6366f1;
+            cursor: pointer;
+            font-size: 0.9rem;
+            background: none;
+            border: none;
+        }
+        .refresh-link:hover { text-decoration: underline; }
+
+        /* Cards */
+        .answer-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .answer-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .answer-card-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .key-badge {
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #374151;
+        }
+        .confidence-badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .confidence-high { background: #d1fae5; color: #065f46; }
+        .confidence-medium { background: #fef3c7; color: #92400e; }
+        .confidence-low { background: #fee2e2; color: #991b1b; }
+        .edit-link {
+            color: #6366f1;
+            cursor: pointer;
+            font-size: 0.9rem;
+            background: none;
+            border: none;
+        }
+        .edit-link:hover { text-decoration: underline; }
+        .answer-text {
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin-bottom: 10px;
+            color: #1a1a1a;
+        }
+        .talking-points-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #9ca3af;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .talking-points-list {
+            list-style: disc;
+            padding-left: 20px;
+            font-size: 0.9rem;
+            color: #4b5563;
+        }
+        .talking-points-list li { margin-bottom: 2px; }
+
+        /* Source cards */
+        .source-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .source-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .source-dot.active { background: #22c55e; }
+        .source-dot.not_configured { background: #d1d5db; }
+        .source-info { flex: 1; }
+        .source-name { font-weight: 600; font-size: 0.95rem; color: #1a1a1a; }
+        .source-desc { font-size: 0.85rem; color: #6b7280; margin-top: 2px; }
+        .source-meta { font-size: 0.8rem; color: #9ca3af; margin-top: 4px; }
+        .source-status-badge {
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .source-status-badge.active { background: #d1fae5; color: #065f46; }
+        .source-status-badge.not_configured { background: #f3f4f6; color: #6b7280; }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #1a1a1a; color: white; }
+        .btn-primary:hover { background: #333; }
+        .btn-purple { background: #7c3aed; color: white; }
+        .btn-purple:hover { background: #6d28d9; }
+        .btn-success { background: #16a34a; color: white; }
+        .btn-success:hover { background: #15803d; }
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+        .btn-secondary:hover { background: #e5e7eb; }
+        .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+        .btn-outline {
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        .btn-outline:hover { background: #f9fafb; }
+
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: #374151;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #1a1a1a;
+            background: white;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        .form-group textarea { min-height: 100px; resize: vertical; font-family: inherit; }
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        .form-row .form-group { flex: 1; }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .modal-header h3 { font-size: 1.2rem; font-weight: 600; }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: #9ca3af;
+            padding: 4px;
+        }
+        .close-btn:hover { color: #374151; }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        /* Question items */
+        .question-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 12px;
+        }
+        .question-text { font-weight: 500; margin-bottom: 8px; color: #1a1a1a; }
+        .question-meta { font-size: 0.85rem; color: #9ca3af; }
+        .question-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+        }
+
+        /* Test search */
+        .test-search-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .test-search-row .form-group { flex: 1; margin-bottom: 0; }
+        .test-search-row .btn { white-space: nowrap; height: 42px; }
+
+        .result-item {
+            padding: 12px 16px;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        .result-title { font-weight: 600; color: #1a1a1a; }
+        .result-content { color: #6b7280; margin-top: 4px; font-size: 0.85rem; }
+        .result-score { color: #9ca3af; font-size: 0.8rem; }
+
+        .stats-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: center;
+            flex: 1;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: 700; color: #6366f1; }
+        .stat-label { font-size: 0.8rem; color: #9ca3af; margin-top: 2px; }
+
+        .resolved-badge {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-left: 8px;
+        }
+
+        .draft-status {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .draft-status.accepted { background: #d1fae5; color: #065f46; }
+        .draft-status.rejected { background: #fee2e2; color: #991b1b; }
+        .draft-status.pending { background: #fef3c7; color: #92400e; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TurboBrain Admin</h1>
+        <div class="subtitle">Knowledge Base & ElevenLabs Management</div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="flagged">
+                Flagged Questions
+                <span class="tab-badge" id="flagged-count" style="display:none;">0</span>
+            </button>
+            <button class="tab" data-tab="answers">
+                Instant Answers
+                <span class="tab-badge" id="suggested-count" style="display:none; background: #7c3aed;">0</span>
+            </button>
+            <button class="tab" data-tab="sources">Knowledge Sources</button>
+            <button class="tab" data-tab="simulator">Test Simulator</button>
+            <button class="tab" data-tab="elevenlabs">ElevenLabs</button>
+        </div>
+
+        <!-- Flagged Questions Panel -->
+        <div id="flagged" class="panel active">
+            <div class="section-header">
+                <div>
+                    <span class="section-title">Unanswered Questions</span>
+                    <label style="margin-left: 20px; font-size: 0.85rem; color: #6b7280;">
+                        <input type="checkbox" id="unresolved-only" checked onchange="loadFlaggedQuestions()" style="margin-right: 4px;">
+                        Show unresolved only
+                    </label>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="refresh-link" onclick="loadFlaggedQuestions()">Refresh</button>
+                    <button class="btn btn-secondary btn-sm" onclick="clearResolved()">Clear Resolved</button>
+                </div>
+            </div>
+            <div id="flagged-list"></div>
+        </div>
+
+        <!-- Instant Answers Panel -->
+        <div id="answers" class="panel">
+            <!-- AI-Suggested Answers Section -->
+            <div id="suggested-section" style="display: none; margin-bottom: 24px;">
+                <div class="section-header">
+                    <span class="section-title" style="color: #7c3aed;">AI-Suggested Answers</span>
+                    <button class="refresh-link" onclick="loadSuggestedAnswers()" style="color: #7c3aed;">Refresh</button>
+                </div>
+                <div id="suggested-list"></div>
+            </div>
+
+            <div class="section-header">
+                <span class="section-title">Instant Answer Cache</span>
+                <button class="btn btn-primary" onclick="openAnswerModal()">+ Add Answer</button>
+            </div>
+            <div id="answers-list"></div>
+        </div>
+
+        <!-- Knowledge Sources Panel -->
+        <div id="sources" class="panel">
+            <div class="section-header">
+                <span class="section-title">Knowledge Sources</span>
+                <button class="refresh-link" onclick="loadSources()">Refresh</button>
+            </div>
+            <div id="sources-list"></div>
+
+            <!-- Google Docs Sources -->
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="section-title">Google Docs Sources</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-outline btn-sm" onclick="syncAllGoogleDocs()">Sync All Now</button>
+                        <button class="btn btn-primary btn-sm" onclick="toggleGdocForm()">+ Add Google Doc</button>
+                    </div>
+                </div>
+                <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 12px;">
+                    Connect Google Docs to keep the knowledge base in sync automatically (daily). Docs must be shared as "Anyone with the link can view".
+                </p>
+
+                <!-- Add Google Doc form (hidden by default) -->
+                <div id="gdoc-add-form" style="display: none; margin-bottom: 16px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                        <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Google Docs URL</label>
+                            <input type="text" id="gdoc-url" placeholder="https://docs.google.com/document/d/...">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 120px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Title</label>
+                            <input type="text" id="gdoc-title" placeholder="e.g. Lease Renewals">
+                        </div>
+                        <div class="form-group" style="min-width: 120px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Category</label>
+                            <select id="gdoc-category" style="padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; width: 100%;">
+                                <option value="general">General</option>
+                                <option value="leasing">Leasing</option>
+                                <option value="repairs">Repairs</option>
+                                <option value="billing">Billing</option>
+                                <option value="renewals">Renewals</option>
+                                <option value="showings">Showings</option>
+                                <option value="escalations">Escalations</option>
+                                <option value="guidelines">Guidelines</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="addGoogleDoc()" style="white-space: nowrap;">Add & Sync</button>
+                        <button class="btn btn-secondary btn-sm" onclick="toggleGdocForm()" style="white-space: nowrap;">Cancel</button>
+                    </div>
+                    <div id="gdoc-add-status" style="margin-top: 8px; font-size: 0.85rem;"></div>
+                </div>
+
+                <div id="gdoc-sync-status" style="margin-bottom: 8px; font-size: 0.85rem;"></div>
+                <div id="gdoc-sources-table"></div>
+            </div>
+
+            <!-- Google Drive Folders -->
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="section-title">Google Drive Folders</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-outline btn-sm" onclick="syncAllDriveFolders()">Sync All Folders</button>
+                        <button class="btn btn-primary btn-sm" onclick="toggleDriveFolderForm()">+ Add Folder</button>
+                    </div>
+                </div>
+                <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 12px;">
+                    Connect entire Google Drive folders to auto-discover and sync all Google Docs inside them. Requires a Google API key. Folders must be shared as "Anyone with the link can view".
+                </p>
+
+                <!-- Add Drive Folder form (hidden by default) -->
+                <div id="dfolder-add-form" style="display: none; margin-bottom: 16px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                        <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Google Drive Folder URL</label>
+                            <input type="text" id="dfolder-url" placeholder="https://drive.google.com/drive/folders/...">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 120px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Title</label>
+                            <input type="text" id="dfolder-title" placeholder="e.g. PM Procedures">
+                        </div>
+                        <div class="form-group" style="min-width: 120px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Category</label>
+                            <select id="dfolder-category" style="padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; width: 100%;">
+                                <option value="general">General</option>
+                                <option value="leasing">Leasing</option>
+                                <option value="repairs">Repairs</option>
+                                <option value="billing">Billing</option>
+                                <option value="renewals">Renewals</option>
+                                <option value="showings">Showings</option>
+                                <option value="escalations">Escalations</option>
+                                <option value="guidelines">Guidelines</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="addDriveFolder()" style="white-space: nowrap;">Add & Sync</button>
+                        <button class="btn btn-secondary btn-sm" onclick="toggleDriveFolderForm()" style="white-space: nowrap;">Cancel</button>
+                    </div>
+                    <div id="dfolder-add-status" style="margin-top: 8px; font-size: 0.85rem;"></div>
+                </div>
+
+                <div id="dfolder-sync-status" style="margin-bottom: 8px; font-size: 0.85rem;"></div>
+                <div id="dfolder-table"></div>
+            </div>
+
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <div class="section-title" style="margin-bottom: 15px;">Test Search</div>
+                <div class="test-search-row">
+                    <div class="form-group">
+                        <input type="text" id="kb-query" placeholder="Enter a test query...">
+                    </div>
+                    <button class="btn btn-outline" onclick="testFrontSearch()">Test Front</button>
+                    <button class="btn btn-outline" onclick="testOpenAISearch()">Test OpenAI</button>
+                </div>
+                <div id="kb-results" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+
+        <!-- Test Simulator Panel (Simplified: keyword suggestions only) -->
+        <div id="simulator" class="panel">
+            <div class="section-title" style="margin-bottom: 15px;">Keyword Suggestions Search</div>
+            <p style="font-size: 0.9rem; color: #6b7280; margin-bottom: 20px;">
+                Enter a customer message to test keyword-based suggestions: instant answers and knowledge base results.
+            </p>
+
+            <div class="test-search-row" style="margin-bottom: 20px;">
+                <div class="form-group">
+                    <input type="text" id="sim-query" placeholder="Enter a customer message to search...">
+                </div>
+                <button class="btn btn-purple" onclick="runSuggestionsSearch()" id="sim-run-btn">Search</button>
+            </div>
+
+            <div id="sim-suggestions-result" style="display: none;">
+                <div class="answer-card">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-weight: 600;">Keyword Suggestions</span>
+                        <span id="sim-suggestions-status" class="draft-status pending" style="margin-left: auto;">loading</span>
+                    </div>
+                    <div id="sim-suggestions-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ElevenLabs Panel -->
+        <div id="elevenlabs" class="panel">
+            <div class="section-header">
+                <div class="section-title">ElevenLabs Knowledge Base Sync</div>
+                <button class="refresh-link" onclick="loadElevenLabsStatus()">Refresh</button>
+            </div>
+            <p style="font-size: 0.9rem; color: #6b7280; margin-bottom: 20px;">
+                Push your knowledge documents and instant answers to ElevenLabs so your voice agent has the same information as the sidebar plugin.
+            </p>
+
+            <!-- Status Cards -->
+            <div id="el-status" class="stats-grid" style="margin-bottom: 20px;"></div>
+
+            <!-- Sync Button -->
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <button class="btn btn-purple" id="el-sync-btn" onclick="syncElevenLabs()">
+                    Sync Knowledge Base to ElevenLabs
+                </button>
+                <button class="btn btn-secondary" id="el-verify-btn" onclick="verifyElevenLabs()">
+                    Verify in ElevenLabs
+                </button>
+                <span id="el-sync-status" style="margin-left: 4px; font-size: 0.9rem; color: #6b7280;"></span>
+            </div>
+
+            <!-- Sync Result -->
+            <div id="el-sync-result" style="display: none; margin-bottom: 20px;"></div>
+
+            <!-- Verify Result -->
+            <div id="el-verify-result" style="display: none; margin-bottom: 20px;"></div>
+
+            <!-- Synced Documents List -->
+            <div id="el-documents"></div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Answer Modal -->
+    <div id="answer-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Edit Instant Answer</h3>
+                <button class="close-btn" onclick="closeAnswerModal()">&times;</button>
+            </div>
+            <form id="answer-form" onsubmit="saveAnswer(event)">
+                <input type="hidden" id="answer-original-key">
+                <div class="form-group">
+                    <label for="answer-key">Key (identifier)</label>
+                    <input type="text" id="answer-key" required placeholder="e.g., rent_payment_date">
+                </div>
+                <div class="form-group">
+                    <label for="answer-text">Answer (short, direct)</label>
+                    <textarea id="answer-text" required placeholder="Direct answer text..." style="min-height: 80px;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="answer-talking-points">Talking Points (one per line)</label>
+                    <textarea id="answer-talking-points" placeholder="Point 1&#10;Point 2&#10;Point 3" style="min-height: 100px;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="answer-response">Suggested Response (what agent can say)</label>
+                    <textarea id="answer-response" placeholder="What the agent should say to the caller..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="answer-confidence">Confidence</label>
+                        <select id="answer-confidence">
+                            <option value="high">High</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="answer-source-topic">Source Topic</label>
+                        <input type="text" id="answer-source-topic" placeholder="e.g., start, leasing">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeAnswerModal()">Cancel</button>
+                    <button type="submit" class="btn btn-purple">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // ============== FLAGGED QUESTIONS ==============
+
+        async function loadFlaggedQuestions() {
+            const unresolvedOnly = document.getElementById('unresolved-only').checked;
+            try {
+                const res = await fetch(`${API_BASE}/api/unanswered?limit=50&unresolved_only=${unresolvedOnly}`);
+                const data = await res.json();
+                const list = document.getElementById('flagged-list');
+                const badge = document.getElementById('flagged-count');
+
+                const questions = data.questions || [];
+                const unresolvedCount = questions.filter(q => !q.resolved).length;
+
+                if (unresolvedCount > 0) {
+                    badge.textContent = unresolvedCount;
+                    badge.style.display = 'inline';
+                } else {
+                    badge.style.display = 'none';
+                }
+
+                if (questions.length === 0) {
+                    list.innerHTML = '<div class="empty-state">No unanswered questions. Great job!</div>';
+                    return;
+                }
+
+                list.innerHTML = questions.map(q => `
+                    <div class="question-item">
+                        <div class="question-text">
+                            ${escapeHtml(q.question)}
+                            ${q.resolved ? '<span class="resolved-badge">Resolved</span>' : ''}
+                        </div>
+                        <div class="question-meta">
+                            Asked ${q.count || 1}x &middot; Last: ${q.last_asked || 'Unknown'}
+                        </div>
+                        <div class="question-actions">
+                            <button class="btn btn-primary btn-sm" onclick="createAnswerFromQuestion('${escapeJs(q.question)}')">
+                                Create Answer
+                            </button>
+                            ${!q.resolved ? `<button class="btn btn-success btn-sm" onclick="resolveQuestion('${escapeJs(q.question)}')">Mark Resolved</button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Error loading flagged questions:', e);
+                document.getElementById('flagged-list').innerHTML =
+                    `<div class="empty-state" style="color: #dc2626;">Error loading questions: ${e.message}</div>`;
+            }
+        }
+
+        async function resolveQuestion(question) {
+            try {
+                await fetch(`${API_BASE}/api/unanswered/${encodeURIComponent(question)}/resolve`, { method: 'POST' });
+                loadFlaggedQuestions();
+            } catch (e) {
+                alert('Error resolving question: ' + e.message);
+            }
+        }
+
+        async function clearResolved() {
+            if (!confirm('Clear all resolved questions from the log?')) return;
+            try {
+                await fetch(`${API_BASE}/api/unanswered/resolved`, { method: 'DELETE' });
+                loadFlaggedQuestions();
+            } catch (e) {
+                alert('Error clearing resolved: ' + e.message);
+            }
+        }
+
+        function createAnswerFromQuestion(question) {
+            const key = question.toLowerCase()
+                .replace(/[^a-z0-9\s]/g, '')
+                .replace(/\s+/g, '_')
+                .slice(0, 50);
+
+            document.getElementById('modal-title').textContent = 'Create Instant Answer';
+            document.getElementById('answer-original-key').value = '';
+            document.getElementById('answer-key').value = key;
+            document.getElementById('answer-text').value = '';
+            document.getElementById('answer-talking-points').value = '';
+            document.getElementById('answer-response').value = '';
+            document.getElementById('answer-confidence').value = 'medium';
+            document.getElementById('answer-source-topic').value = '';
+            document.getElementById('answer-modal').classList.add('active');
+        }
+
+        // ============== INSTANT ANSWERS ==============
+
+        async function loadInstantAnswers() {
+            try {
+                const res = await fetch(`${API_BASE}/api/instant-answers`);
+                const data = await res.json();
+                const list = document.getElementById('answers-list');
+
+                // API returns {answers: [{key, answer, ...}, ...]} as a list
+                const answers = data.answers || [];
+                if (answers.length === 0) {
+                    list.innerHTML = '<div class="empty-state">No instant answers yet. Create one to get started.</div>';
+                    return;
+                }
+
+                list.innerHTML = answers.map(answer => {
+                    const key = answer.key || '';
+                    const points = answer.talking_points || [];
+                    const confidence = answer.confidence || 'medium';
+                    return `
+                        <div class="answer-card">
+                            <div class="answer-card-header">
+                                <div class="answer-card-header-left">
+                                    <span class="key-badge">${escapeHtml(key)}</span>
+                                    <span class="confidence-badge confidence-${confidence}">${confidence}</span>
+                                </div>
+                                <button class="edit-link" onclick="editAnswer('${escapeJs(key)}')">Edit</button>
+                            </div>
+                            <div class="answer-text">${escapeHtml(answer.answer || '')}</div>
+                            ${points.length > 0 ? `
+                                <div class="talking-points-label">TALKING POINTS:</div>
+                                <ul class="talking-points-list">
+                                    ${points.map(p => `<li>${escapeHtml(p)}</li>`).join('')}
+                                </ul>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Error loading instant answers:', e);
+                document.getElementById('answers-list').innerHTML =
+                    `<div class="empty-state" style="color: #dc2626;">Error loading answers: ${e.message}</div>`;
+            }
+        }
+
+        function openAnswerModal() {
+            document.getElementById('modal-title').textContent = 'Create Instant Answer';
+            document.getElementById('answer-original-key').value = '';
+            document.getElementById('answer-key').value = '';
+            document.getElementById('answer-text').value = '';
+            document.getElementById('answer-talking-points').value = '';
+            document.getElementById('answer-response').value = '';
+            document.getElementById('answer-confidence').value = 'medium';
+            document.getElementById('answer-source-topic').value = '';
+            document.getElementById('answer-modal').classList.add('active');
+        }
+
+        function closeAnswerModal() {
+            document.getElementById('answer-modal').classList.remove('active');
+        }
+
+        async function editAnswer(key) {
+            try {
+                const res = await fetch(`${API_BASE}/api/instant-answers/${encodeURIComponent(key)}`);
+                const answer = await res.json();
+
+                document.getElementById('modal-title').textContent = 'Edit Instant Answer';
+                document.getElementById('answer-original-key').value = key;
+                document.getElementById('answer-key').value = key;
+                document.getElementById('answer-text').value = answer.answer || '';
+                document.getElementById('answer-talking-points').value = (answer.talking_points || []).join('\n');
+                document.getElementById('answer-response').value = answer.suggested_response || '';
+                document.getElementById('answer-confidence').value = answer.confidence || 'medium';
+                document.getElementById('answer-source-topic').value = answer.source_topic || '';
+                document.getElementById('answer-modal').classList.add('active');
+            } catch (e) {
+                alert('Error loading answer: ' + e.message);
+            }
+        }
+
+        async function saveAnswer(e) {
+            e.preventDefault();
+
+            const originalKey = document.getElementById('answer-original-key').value;
+            const key = document.getElementById('answer-key').value;
+            const talkingPoints = document.getElementById('answer-talking-points').value
+                .split('\n')
+                .map(s => s.trim())
+                .filter(s => s);
+
+            const data = {
+                key: key,
+                answer: document.getElementById('answer-text').value,
+                talking_points: talkingPoints,
+                suggested_response: document.getElementById('answer-response').value,
+                confidence: document.getElementById('answer-confidence').value,
+                source_topic: document.getElementById('answer-source-topic').value,
+            };
+
+            try {
+                // Handle "Edit & Approve" from AI-suggested answers
+                if (originalKey && originalKey.startsWith('__suggestion__')) {
+                    const suggestionId = originalKey.replace('__suggestion__', '');
+
+                    // First update the suggestion with edited values
+                    await fetch(`${API_BASE}/api/suggested-answers/${suggestionId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data),
+                    });
+
+                    // Then approve it (creates the InstantAnswer)
+                    const approveRes = await fetch(`${API_BASE}/api/suggested-answers/${suggestionId}/approve`, { method: 'POST' });
+                    if (!approveRes.ok) {
+                        const err = await approveRes.json();
+                        alert('Error approving: ' + (err.detail || 'Failed'));
+                        return;
+                    }
+
+                    closeAnswerModal();
+                    loadSuggestedAnswers();
+                    loadInstantAnswers();
+                    return;
+                }
+
+                if (originalKey && originalKey !== key) {
+                    await fetch(`${API_BASE}/api/instant-answers/${encodeURIComponent(originalKey)}`, { method: 'DELETE' });
+                }
+
+                const method = originalKey ? 'PUT' : 'POST';
+                const url = originalKey && originalKey === key
+                    ? `${API_BASE}/api/instant-answers/${encodeURIComponent(key)}`
+                    : `${API_BASE}/api/instant-answers`;
+
+                await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+
+                closeAnswerModal();
+                loadInstantAnswers();
+            } catch (e) {
+                alert('Error saving answer: ' + e.message);
+            }
+        }
+
+        // ============== KNOWLEDGE SOURCES ==============
+
+        const SOURCE_DISPLAY_NAMES = {
+            'local_knowledge': 'Local Knowledge Base',
+            'google_docs': 'Google Docs',
+            'google_drive_folders': 'Drive Folders',
+            'front': 'Front (Customer Conversations)',
+            'openai_files': 'OpenAI File Search',
+            'slack': 'Slack',
+        };
+
+        async function loadSources() {
+            try {
+                const res = await fetch(`${API_BASE}/api/sources/status`);
+                const data = await res.json();
+                const list = document.getElementById('sources-list');
+
+                if (!data.sources) {
+                    list.innerHTML = '<div class="empty-state">Unable to load sources.</div>';
+                    return;
+                }
+
+                const sources = Object.entries(data.sources);
+                list.innerHTML = sources.map(([name, source]) => `
+                    <div class="source-card">
+                        <div class="source-dot ${source.status}"></div>
+                        <div class="source-info">
+                            <div class="source-name">${escapeHtml(SOURCE_DISPLAY_NAMES[name] || name)}</div>
+                            <div class="source-desc">${escapeHtml(source.description || '')}</div>
+                            ${source.vector_store_id ? `<div class="source-meta">Vector Store: ${escapeHtml(source.vector_store_id)}</div>` : ''}
+                        </div>
+                        <span class="source-status-badge ${source.status}">${source.status}</span>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Error loading sources:', e);
+                document.getElementById('sources-list').innerHTML =
+                    `<div class="empty-state" style="color: #dc2626;">Error loading sources: ${e.message}</div>`;
+            }
+        }
+
+        // ============== GOOGLE DOCS SYNC ==============
+
+        async function loadGoogleDocs() {
+            try {
+                const res = await fetch(`${API_BASE}/api/google-docs`);
+                const data = await res.json();
+                const tableDiv = document.getElementById('gdoc-sources-table');
+
+                if (!data.sources || data.sources.length === 0) {
+                    tableDiv.innerHTML = '<div class="empty-state">No Google Docs configured yet. Click "+ Add Google Doc" to get started.</div>';
+                    return;
+                }
+
+                tableDiv.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #e5e7eb; text-align: left;">
+                                <th style="padding: 8px 6px;">Title</th>
+                                <th style="padding: 8px 6px;">Category</th>
+                                <th style="padding: 8px 6px;">Last Synced</th>
+                                <th style="padding: 8px 6px;">Status</th>
+                                <th style="padding: 8px 6px; text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.sources.map(s => `
+                                <tr style="border-bottom: 1px solid #f3f4f6;">
+                                    <td style="padding: 8px 6px;">
+                                        <div style="font-weight: 500;">${escapeHtml(s.title)}</div>
+                                        <div style="font-size: 0.75rem; color: #9ca3af; font-family: monospace;">${escapeHtml(s.googleDocId).slice(0, 20)}...</div>
+                                    </td>
+                                    <td style="padding: 8px 6px;">
+                                        <span style="background: #f3f4f6; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">${escapeHtml(s.category)}</span>
+                                    </td>
+                                    <td style="padding: 8px 6px; color: #6b7280;">
+                                        ${s.lastSyncedAt ? new Date(s.lastSyncedAt).toLocaleString() : 'Never'}
+                                    </td>
+                                    <td style="padding: 8px 6px;">
+                                        ${s.lastSyncStatus === 'success' ? '<span style="color: #059669;">&#10003; Synced</span>' :
+                                          s.lastSyncStatus === 'error' ? `<span style="color: #dc2626;" title="${escapeHtml(s.lastError || '')}">&#10007; Error</span>` :
+                                          '<span style="color: #9ca3af;">&#8212; Pending</span>'}
+                                        ${!s.enabled ? '<span style="color: #f59e0b; margin-left: 4px;">(disabled)</span>' : ''}
+                                    </td>
+                                    <td style="padding: 8px 6px; text-align: right; white-space: nowrap;">
+                                        <button class="btn btn-outline btn-sm" onclick="syncOneGoogleDoc('${s.id}')" style="padding: 3px 8px; font-size: 0.75rem;">Sync</button>
+                                        <button class="btn btn-outline btn-sm" onclick="removeGoogleDoc('${s.id}', '${escapeHtml(s.title)}')" style="padding: 3px 8px; font-size: 0.75rem; color: #dc2626; border-color: #fecaca;">Remove</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (e) {
+                console.error('Error loading Google Docs:', e);
+                document.getElementById('gdoc-sources-table').innerHTML =
+                    `<div class="empty-state" style="color: #dc2626;">Error loading Google Docs: ${e.message}</div>`;
+            }
+        }
+
+        function toggleGdocForm() {
+            const form = document.getElementById('gdoc-add-form');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            if (form.style.display === 'block') {
+                document.getElementById('gdoc-url').focus();
+            }
+        }
+
+        async function addGoogleDoc() {
+            const url = document.getElementById('gdoc-url').value.trim();
+            const title = document.getElementById('gdoc-title').value.trim();
+            const category = document.getElementById('gdoc-category').value;
+            const statusDiv = document.getElementById('gdoc-add-status');
+
+            if (!url) { statusDiv.innerHTML = '<span style="color: #dc2626;">Please enter a Google Docs URL.</span>'; return; }
+            if (!title) { statusDiv.innerHTML = '<span style="color: #dc2626;">Please enter a title.</span>'; return; }
+
+            statusDiv.innerHTML = '<span style="color: #6b7280;">Adding and syncing...</span>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/google-docs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, title, category }),
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Failed to add');
+                }
+
+                const data = await res.json();
+                const syncStatus = data.syncResult?.status || 'unknown';
+                statusDiv.innerHTML = `<span style="color: #059669;">Added successfully! Sync: ${syncStatus}</span>`;
+
+                // Clear form
+                document.getElementById('gdoc-url').value = '';
+                document.getElementById('gdoc-title').value = '';
+                document.getElementById('gdoc-category').value = 'general';
+
+                setTimeout(() => {
+                    document.getElementById('gdoc-add-form').style.display = 'none';
+                    statusDiv.innerHTML = '';
+                }, 2000);
+
+                loadGoogleDocs();
+                loadSources();
+            } catch (e) {
+                statusDiv.innerHTML = `<span style="color: #dc2626;">Error: ${e.message}</span>`;
+            }
+        }
+
+        async function syncOneGoogleDoc(sourceId) {
+            const statusDiv = document.getElementById('gdoc-sync-status');
+            statusDiv.innerHTML = '<span style="color: #6b7280;">Syncing...</span>';
+            try {
+                const res = await fetch(`${API_BASE}/api/google-docs/${sourceId}/sync`, { method: 'POST' });
+                const data = await res.json();
+                statusDiv.innerHTML = `<span style="color: #059669;">Sync complete: ${data.status || 'done'}</span>`;
+                setTimeout(() => { statusDiv.innerHTML = ''; }, 3000);
+                loadGoogleDocs();
+            } catch (e) {
+                statusDiv.innerHTML = `<span style="color: #dc2626;">Sync error: ${e.message}</span>`;
+            }
+        }
+
+        async function syncAllGoogleDocs() {
+            const statusDiv = document.getElementById('gdoc-sync-status');
+            statusDiv.innerHTML = '<span style="color: #6b7280;">Syncing all Google Docs...</span>';
+            try {
+                const res = await fetch(`${API_BASE}/api/google-docs/sync-all`, { method: 'POST' });
+                const data = await res.json();
+                statusDiv.innerHTML = `<span style="color: #059669;">Sync complete: ${data.synced} updated, ${data.skipped} unchanged, ${data.errors} errors</span>`;
+                setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
+                loadGoogleDocs();
+                loadSources();
+            } catch (e) {
+                statusDiv.innerHTML = `<span style="color: #dc2626;">Sync error: ${e.message}</span>`;
+            }
+        }
+
+        async function removeGoogleDoc(sourceId, title) {
+            if (!confirm(`Remove "${title}" from Google Docs sources? This will also delete its synced knowledge document.`)) return;
+            try {
+                await fetch(`${API_BASE}/api/google-docs/${sourceId}`, { method: 'DELETE' });
+                loadGoogleDocs();
+                loadSources();
+            } catch (e) {
+                alert('Error removing: ' + e.message);
+            }
+        }
+
+        // ============== GOOGLE DRIVE FOLDERS ==============
+
+        async function loadDriveFolders() {
+            try {
+                const res = await fetch(`${API_BASE}/api/drive-folders`);
+                const data = await res.json();
+                const tableDiv = document.getElementById('dfolder-table');
+
+                if (!data.folders || data.folders.length === 0) {
+                    tableDiv.innerHTML = '<div class="empty-state">No Drive folders configured yet. Click "+ Add Folder" to get started.</div>';
+                    return;
+                }
+
+                tableDiv.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #e5e7eb; text-align: left;">
+                                <th style="padding: 8px 6px;">Title</th>
+                                <th style="padding: 8px 6px;">Category</th>
+                                <th style="padding: 8px 6px;">Docs Found</th>
+                                <th style="padding: 8px 6px;">Last Synced</th>
+                                <th style="padding: 8px 6px;">Status</th>
+                                <th style="padding: 8px 6px; text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.folders.map(f => `
+                                <tr style="border-bottom: 1px solid #f3f4f6;">
+                                    <td style="padding: 8px 6px;">
+                                        <div style="font-weight: 500;">${escapeHtml(f.title)}</div>
+                                        <div style="font-size: 0.75rem; color: #9ca3af; font-family: monospace;">${escapeHtml(f.folderId).slice(0, 20)}...</div>
+                                    </td>
+                                    <td style="padding: 8px 6px;">
+                                        <span style="background: #f3f4f6; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">${escapeHtml(f.category)}</span>
+                                    </td>
+                                    <td style="padding: 8px 6px; color: #6b7280;">${f.docsFound}</td>
+                                    <td style="padding: 8px 6px; color: #6b7280;">
+                                        ${f.lastSyncedAt ? new Date(f.lastSyncedAt).toLocaleString() : 'Never'}
+                                    </td>
+                                    <td style="padding: 8px 6px;">
+                                        ${f.lastSyncStatus === 'success' ? '<span style="color: #059669;">&#10003; Synced</span>' :
+                                          f.lastSyncStatus === 'error' ? `<span style="color: #dc2626;" title="${escapeHtml(f.lastError || '')}">&#10007; Error</span>` :
+                                          '<span style="color: #9ca3af;">&#8212; Pending</span>'}
+                                        ${!f.enabled ? '<span style="color: #f59e0b; margin-left: 4px;">(disabled)</span>' : ''}
+                                    </td>
+                                    <td style="padding: 8px 6px; text-align: right; white-space: nowrap;">
+                                        <button class="btn btn-outline btn-sm" onclick="syncOneDriveFolder('${f.id}')" style="padding: 3px 8px; font-size: 0.75rem;">Sync</button>
+                                        <button class="btn btn-outline btn-sm" onclick="removeDriveFolder('${f.id}', '${escapeHtml(f.title)}')" style="padding: 3px 8px; font-size: 0.75rem; color: #dc2626; border-color: #fecaca;">Remove</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (e) {
+                console.error('Error loading Drive folders:', e);
+                document.getElementById('dfolder-table').innerHTML =
+                    `<div class="empty-state" style="color: #dc2626;">Error loading Drive folders: ${e.message}</div>`;
+            }
+        }
+
+        function toggleDriveFolderForm() {
+            const form = document.getElementById('dfolder-add-form');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            if (form.style.display === 'block') {
+                document.getElementById('dfolder-url').focus();
+            }
+        }
+
+        async function addDriveFolder() {
+            const url = document.getElementById('dfolder-url').value.trim();
+            const title = document.getElementById('dfolder-title').value.trim();
+            const category = document.getElementById('dfolder-category').value;
+            const statusDiv = document.getElementById('dfolder-add-status');
+
+            if (!url) { statusDiv.innerHTML = '<span style="color: #dc2626;">Please enter a Google Drive folder URL.</span>'; return; }
+            if (!title) { statusDiv.innerHTML = '<span style="color: #dc2626;">Please enter a title.</span>'; return; }
+
+            statusDiv.innerHTML = '<span style="color: #6b7280;">Adding and syncing folder (this may take a moment)...</span>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/drive-folders`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, title, category }),
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Failed to add');
+                }
+
+                const data = await res.json();
+                const sr = data.syncResult || {};
+                statusDiv.innerHTML = `<span style="color: #059669;">Added! Found ${sr.docs_found || 0} docs, ${sr.new_sources || 0} new, ${sr.synced || 0} updated.</span>`;
+
+                document.getElementById('dfolder-url').value = '';
+                document.getElementById('dfolder-title').value = '';
+                document.getElementById('dfolder-category').value = 'general';
+
+                setTimeout(() => {
+                    document.getElementById('dfolder-add-form').style.display = 'none';
+                    statusDiv.innerHTML = '';
+                }, 3000);
+
+                loadDriveFolders();
+                loadGoogleDocs();
+                loadSources();
+            } catch (e) {
+                statusDiv.innerHTML = `<span style="color: #dc2626;">Error: ${e.message}</span>`;
+            }
+        }
+
+        async function syncOneDriveFolder(folderId) {
+            const statusDiv = document.getElementById('dfolder-sync-status');
+            statusDiv.innerHTML = '<span style="color: #6b7280;">Syncing folder...</span>';
+            try {
+                const res = await fetch(`${API_BASE}/api/drive-folders/${folderId}/sync`, { method: 'POST' });
+                const data = await res.json();
+                statusDiv.innerHTML = `<span style="color: #059669;">Sync complete: ${data.docs_found || 0} docs, ${data.synced || 0} updated</span>`;
+                setTimeout(() => { statusDiv.innerHTML = ''; }, 3000);
+                loadDriveFolders();
+                loadGoogleDocs();
+            } catch (e) {
+                statusDiv.innerHTML = `<span style="color: #dc2626;">Sync error: ${e.message}</span>`;
+            }
+        }
+
+        async function syncAllDriveFolders() {
+            const statusDiv = document.getElementById('dfolder-sync-status');
+            statusDiv.innerHTML = '<span style="color: #6b7280;">Syncing all folders...</span>';
+            try {
+                const res = await fetch(`${API_BASE}/api/drive-folders/sync-all`, { method: 'POST' });
+                const data = await res.json();
+                statusDiv.innerHTML = `<span style="color: #059669;">Sync complete: ${data.synced || 0} docs updated, ${data.errors || 0} errors</span>`;
+                setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
+                loadDriveFolders();
+                loadGoogleDocs();
+                loadSources();
+            } catch (e) {
+                statusDiv.innerHTML = `<span style="color: #dc2626;">Sync error: ${e.message}</span>`;
+            }
+        }
+
+        async function removeDriveFolder(folderId, title) {
+            if (!confirm(`Remove folder "${title}"? The Google Docs discovered from this folder will remain as individual sources.`)) return;
+            try {
+                await fetch(`${API_BASE}/api/drive-folders/${folderId}`, { method: 'DELETE' });
+                loadDriveFolders();
+                loadSources();
+            } catch (e) {
+                alert('Error removing: ' + e.message);
+            }
+        }
+
+        async function testFrontSearch() {
+            const query = document.getElementById('kb-query').value.trim();
+            if (!query) { alert('Enter a search query'); return; }
+
+            const resultsDiv = document.getElementById('kb-results');
+            resultsDiv.innerHTML = '<div style="color: #9ca3af;">Searching Front...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/sources/front/test?query=${encodeURIComponent(query)}`, { method: 'POST' });
+                const data = await res.json();
+
+                if (!data.results || data.results.length === 0) {
+                    resultsDiv.innerHTML = '<div class="empty-state">No Front results found.</div>';
+                    return;
+                }
+
+                resultsDiv.innerHTML = `
+                    <div style="margin-bottom: 10px; font-size: 0.85rem; color: #6b7280;">
+                        ${data.count} results | Variations: ${(data.search_variations || []).join(', ')}
+                    </div>
+                    ${data.results.map(r => `
+                        <div class="result-item">
+                            <div class="result-title">${escapeHtml(r.subject || r.title || 'Untitled')}</div>
+                            <div class="result-content">${escapeHtml((r.content || r.excerpt || '').slice(0, 200))}</div>
+                        </div>
+                    `).join('')}
+                `;
+            } catch (e) {
+                resultsDiv.innerHTML = `<div style="color: #dc2626;">Error: ${e.message}</div>`;
+            }
+        }
+
+        async function testOpenAISearch() {
+            const query = document.getElementById('kb-query').value.trim();
+            if (!query) { alert('Enter a search query'); return; }
+
+            const resultsDiv = document.getElementById('kb-results');
+            resultsDiv.innerHTML = '<div style="color: #9ca3af;">Searching OpenAI...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/sources/openai/test?query=${encodeURIComponent(query)}`, { method: 'POST' });
+                const data = await res.json();
+
+                if (!data.results || data.results.length === 0) {
+                    resultsDiv.innerHTML = '<div class="empty-state">No OpenAI results found.</div>';
+                    return;
+                }
+
+                resultsDiv.innerHTML = `
+                    <div style="margin-bottom: 10px; font-size: 0.85rem; color: #6b7280;">${data.count} results</div>
+                    ${data.results.map(r => `
+                        <div class="result-item">
+                            <div class="result-title">${escapeHtml(r.title || 'Untitled')}</div>
+                            <div class="result-content">${escapeHtml((r.content || '').slice(0, 300))}</div>
+                            ${r.relevance_score ? `<div class="result-score">${Math.round(r.relevance_score * 100)}% match</div>` : ''}
+                        </div>
+                    `).join('')}
+                `;
+            } catch (e) {
+                resultsDiv.innerHTML = `<div style="color: #dc2626;">Error: ${e.message}</div>`;
+            }
+        }
+
+        // ============== TEST SIMULATOR (Keyword Suggestions Only) ==============
+
+        async function runSuggestionsSearch() {
+            const query = document.getElementById('sim-query').value.trim();
+            if (!query) { alert('Enter a customer message to search'); return; }
+
+            const runBtn = document.getElementById('sim-run-btn');
+            runBtn.disabled = true;
+            runBtn.textContent = 'Searching...';
+
+            const resultDiv = document.getElementById('sim-suggestions-result');
+            resultDiv.style.display = 'block';
+            document.getElementById('sim-suggestions-status').textContent = 'loading';
+            document.getElementById('sim-suggestions-status').className = 'draft-status pending';
+            document.getElementById('sim-suggestions-content').innerHTML = '';
+
+            try {
+                const suggestionsUrl = `${API_BASE}/api/suggestions?query=${encodeURIComponent(query)}`;
+                const suggestionsRes = await fetch(suggestionsUrl, { method: 'POST' });
+
+                if (!suggestionsRes.ok) {
+                    throw new Error(`HTTP ${suggestionsRes.status}`);
+                }
+
+                const suggestions = await suggestionsRes.json();
+                document.getElementById('sim-suggestions-status').textContent = 'done';
+                document.getElementById('sim-suggestions-status').className = 'draft-status accepted';
+
+                const instantAnswers = suggestions.instant_answers || [];
+                const kbResults = suggestions.knowledge_results || [];
+
+                let suggestionsHtml = '';
+                if (instantAnswers.length > 0) {
+                    suggestionsHtml += `<div style="font-weight: 500; margin-bottom: 8px;">Instant Answers (${instantAnswers.length}):</div>`;
+                    suggestionsHtml += instantAnswers.map(a => `
+                        <div class="result-item">
+                            <div class="result-title">${escapeHtml(a.key || a.answer || 'Answer')}</div>
+                            <div class="result-content">${escapeHtml((a.answer || a.suggested_response || '').slice(0, 300))}</div>
+                        </div>
+                    `).join('');
+                }
+                if (kbResults.length > 0) {
+                    suggestionsHtml += `<div style="font-weight: 500; margin-top: 12px; margin-bottom: 8px;">Knowledge Results (${kbResults.length}):</div>`;
+                    suggestionsHtml += kbResults.map(r => `
+                        <div class="result-item">
+                            <div class="result-title">${escapeHtml(r.title || 'Untitled')}</div>
+                            <div class="result-content">${escapeHtml((r.content || '').slice(0, 300))}</div>
+                            ${r.relevance_score ? `<div class="result-score">${Math.round(r.relevance_score * 100)}% match</div>` : ''}
+                        </div>
+                    `).join('');
+                }
+                if (!suggestionsHtml) {
+                    suggestionsHtml = '<div style="color: #9ca3af;">No suggestions found.</div>';
+                }
+
+                document.getElementById('sim-suggestions-content').innerHTML = suggestionsHtml;
+            } catch (e) {
+                document.getElementById('sim-suggestions-status').textContent = 'error';
+                document.getElementById('sim-suggestions-status').className = 'draft-status rejected';
+                document.getElementById('sim-suggestions-content').innerHTML = `<div style="color: #dc2626;">${escapeHtml(e.message)}</div>`;
+            }
+
+            runBtn.disabled = false;
+            runBtn.textContent = 'Search';
+        }
+
+        // ============== AI-SUGGESTED ANSWERS ==============
+
+        async function loadSuggestedAnswers() {
+            try {
+                const countRes = await fetch(`${API_BASE}/api/suggested-answers/count`);
+                const countData = await countRes.json();
+                const badge = document.getElementById('suggested-count');
+                const section = document.getElementById('suggested-section');
+
+                if (countData.count > 0) {
+                    badge.textContent = countData.count;
+                    badge.style.display = 'inline';
+                    section.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                    section.style.display = 'none';
+                    return;
+                }
+
+                const res = await fetch(`${API_BASE}/api/suggested-answers?status=pending`);
+                const data = await res.json();
+                const list = document.getElementById('suggested-list');
+                const suggestions = data.suggestions || [];
+
+                if (suggestions.length === 0) {
+                    list.innerHTML = '<div class="empty-state">No pending suggestions.</div>';
+                    section.style.display = 'none';
+                    badge.style.display = 'none';
+                    return;
+                }
+
+                list.innerHTML = suggestions.map(s => {
+                    const points = s.talking_points || [];
+                    return `
+                        <div class="answer-card" style="border-left: 3px solid #7c3aed;">
+                            <div class="answer-card-header">
+                                <div class="answer-card-header-left">
+                                    <span class="key-badge">${escapeHtml(s.key)}</span>
+                                    <span class="confidence-badge confidence-${s.confidence || 'medium'}">${s.confidence || 'medium'}</span>
+                                </div>
+                                <span style="font-size: 0.8rem; color: #9ca3af;">${escapeHtml(s.source_document_title || '')}</span>
+                            </div>
+                            <div class="answer-text">${escapeHtml(s.answer)}</div>
+                            ${points.length > 0 ? `
+                                <div class="talking-points-label">TALKING POINTS:</div>
+                                <ul class="talking-points-list">
+                                    ${points.map(p => '<li>' + escapeHtml(p) + '</li>').join('')}
+                                </ul>
+                            ` : ''}
+                            ${s.suggested_response ? `
+                                <div style="margin-top: 8px; padding: 8px 12px; background: #f9fafb; border-radius: 6px; font-size: 0.85rem; color: #4b5563;">
+                                    <strong>Suggested response:</strong> ${escapeHtml(s.suggested_response)}
+                                </div>
+                            ` : ''}
+                            <div style="display: flex; gap: 8px; margin-top: 12px;">
+                                <button class="btn btn-success btn-sm" onclick="approveSuggestion('${s.id}')">Approve</button>
+                                <button class="btn btn-purple btn-sm" onclick="editSuggestion('${s.id}')">Edit &amp; Approve</button>
+                                <button class="btn btn-secondary btn-sm" onclick="dismissSuggestion('${s.id}')">Dismiss</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Error loading suggested answers:', e);
+            }
+        }
+
+        async function approveSuggestion(id) {
+            try {
+                const res = await fetch(`${API_BASE}/api/suggested-answers/${id}/approve`, { method: 'POST' });
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert('Error: ' + (err.detail || 'Failed to approve'));
+                    return;
+                }
+                loadSuggestedAnswers();
+                loadInstantAnswers();
+            } catch (e) {
+                alert('Error approving suggestion: ' + e.message);
+            }
+        }
+
+        async function editSuggestion(id) {
+            try {
+                const res = await fetch(`${API_BASE}/api/suggested-answers?status=pending`);
+                const data = await res.json();
+                const suggestion = (data.suggestions || []).find(s => s.id === id);
+                if (!suggestion) { alert('Suggestion not found'); return; }
+
+                // Pre-fill the answer modal with suggestion data
+                document.getElementById('modal-title').textContent = 'Edit & Approve Suggestion';
+                document.getElementById('answer-original-key').value = '__suggestion__' + id;
+                document.getElementById('answer-key').value = suggestion.key;
+                document.getElementById('answer-text').value = suggestion.answer || '';
+                document.getElementById('answer-talking-points').value = (suggestion.talking_points || []).join('\n');
+                document.getElementById('answer-response').value = suggestion.suggested_response || '';
+                document.getElementById('answer-confidence').value = suggestion.confidence || 'medium';
+                document.getElementById('answer-source-topic').value = suggestion.source_topic || '';
+                document.getElementById('answer-modal').classList.add('active');
+            } catch (e) {
+                alert('Error loading suggestion: ' + e.message);
+            }
+        }
+
+        async function dismissSuggestion(id) {
+            try {
+                await fetch(`${API_BASE}/api/suggested-answers/${id}/dismiss`, { method: 'POST' });
+                loadSuggestedAnswers();
+            } catch (e) {
+                alert('Error dismissing suggestion: ' + e.message);
+            }
+        }
+
+        // ============== ELEVENLABS SYNC ==============
+
+        async function loadElevenLabsStatus() {
+            const statusDiv = document.getElementById('el-status');
+            const docsDiv = document.getElementById('el-documents');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/elevenlabs/status`);
+                const data = await res.json();
+
+                statusDiv.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-value" style="color: ${data.configured ? '#16a34a' : '#dc2626'};">${data.configured ? 'Yes' : 'No'}</div>
+                        <div class="stat-label">API Key Set</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.document_count || 0}</div>
+                        <div class="stat-label">Docs Synced</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.knowledge_documents || 0}</div>
+                        <div class="stat-label">Knowledge Docs</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="color: ${data.instant_answers_synced ? '#16a34a' : '#9ca3af'};">${data.instant_answers_synced ? 'Yes' : 'No'}</div>
+                        <div class="stat-label">Quick Answers</div>
+                    </div>
+                `;
+
+                if (!data.configured) {
+                    docsDiv.innerHTML = '<div class="empty-state">Set <code>ELEVENLABS_API_KEY</code> env var to enable sync.</div>';
+                    document.getElementById('el-sync-btn').disabled = true;
+                    return;
+                }
+
+                document.getElementById('el-sync-btn').disabled = false;
+
+                if (data.last_sync) {
+                    document.getElementById('el-sync-status').textContent = 'Last sync: ' + formatDate(data.last_sync);
+                }
+
+                if (data.documents && data.documents.length > 0) {
+                    docsDiv.innerHTML = `
+                        <div class="section-title" style="font-size: 0.95rem; margin-bottom: 12px;">Synced Documents</div>
+                        ${data.documents.map(d => `
+                            <div class="answer-card" style="padding: 12px 16px; margin-bottom: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <span style="font-weight: 500;">${escapeHtml(d.name)}</span>
+                                        <span class="confidence-badge confidence-${d.type === 'knowledge' ? 'high' : 'medium'}" style="margin-left: 8px;">${d.type}</span>
+                                    </div>
+                                    <span style="font-size: 0.8rem; color: #9ca3af;">${d.synced_at ? formatDate(d.synced_at) : ''}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    docsDiv.innerHTML = '<div class="empty-state">No documents synced yet. Click the button above to sync.</div>';
+                }
+            } catch (e) {
+                statusDiv.innerHTML = `<div class="empty-state" style="color: #dc2626;">Error loading status: ${e.message}</div>`;
+            }
+        }
+
+        async function syncElevenLabs() {
+            const btn = document.getElementById('el-sync-btn');
+            const resultDiv = document.getElementById('el-sync-result');
+
+            btn.disabled = true;
+            btn.textContent = 'Syncing...';
+            resultDiv.style.display = 'none';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/elevenlabs/sync`, { method: 'POST' });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || `Sync failed (${res.status})`);
+                }
+
+                const data = await res.json();
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <div class="answer-card" style="border-left: 3px solid #16a34a;">
+                        <div style="font-weight: 600; margin-bottom: 8px; color: #16a34a;">Sync Complete</div>
+                        <div style="display: flex; gap: 20px; font-size: 0.9rem; flex-wrap: wrap;">
+                            <span><strong>${data.created}</strong> created</span>
+                            <span><strong>${data.updated}</strong> updated</span>
+                            <span><strong>${data.skipped}</strong> unchanged</span>
+                            ${data.errors > 0 ? `<span style="color: #dc2626;"><strong>${data.errors}</strong> errors</span>` : ''}
+                        </div>
+                        ${data.agent_updated ? '<div style="margin-top: 8px; font-size: 0.85rem; color: #16a34a;">Agent knowledge base updated.</div>' : '<div style="margin-top: 8px; font-size: 0.85rem; color: #9ca3af;">Set ELEVENLABS_AGENT_ID to auto-attach docs to your agent.</div>'}
+                    </div>
+                `;
+
+                loadElevenLabsStatus();
+            } catch (e) {
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <div class="answer-card" style="border-left: 3px solid #dc2626;">
+                        <div style="color: #dc2626;">${escapeHtml(e.message)}</div>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Sync Knowledge Base to ElevenLabs';
+            }
+        }
+
+        async function verifyElevenLabs() {
+            const btn = document.getElementById('el-verify-btn');
+            const resultDiv = document.getElementById('el-verify-result');
+
+            btn.disabled = true;
+            btn.textContent = 'Verifying...';
+            resultDiv.style.display = 'none';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/elevenlabs/verify`);
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || `Verify failed (${res.status})`);
+                }
+
+                const data = await res.json();
+                const matched = (data.elevenlabs_documents || []).filter(d => d.in_our_sync).length;
+                const unmatched = (data.elevenlabs_documents || []).filter(d => !d.in_our_sync).length;
+
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <div class="answer-card" style="border-left: 3px solid #3b82f6;">
+                        <div style="font-weight: 600; margin-bottom: 8px; color: #3b82f6;">ElevenLabs Workspace Verification</div>
+                        <div style="display: flex; gap: 20px; font-size: 0.9rem; flex-wrap: wrap; margin-bottom: 10px;">
+                            <span><strong>${data.elevenlabs_total}</strong> docs in ElevenLabs</span>
+                            <span><strong>${matched}</strong> match our sync</span>
+                            <span><strong>${data.our_sync_records}</strong> in our DB</span>
+                            ${unmatched > 0 ? `<span style="color: #f59e0b;"><strong>${unmatched}</strong> not from us</span>` : ''}
+                            ${data.has_more ? '<span style="color: #f59e0b;">More pages available</span>' : ''}
+                        </div>
+                        ${data.elevenlabs_total === 0 ? '<div style="color: #dc2626; font-size: 0.85rem;">No documents found in ElevenLabs workspace. Documents may only be visible under the agent settings.</div>' : ''}
+                        <details style="margin-top: 8px;">
+                            <summary style="cursor: pointer; font-size: 0.85rem; color: #6b7280;">Show all ElevenLabs documents</summary>
+                            <div style="margin-top: 8px; font-size: 0.85rem;">
+                                ${(data.elevenlabs_documents || []).map(d => `
+                                    <div style="padding: 4px 0; border-bottom: 1px solid #f3f4f6;">
+                                        <span style="color: ${d.in_our_sync ? '#16a34a' : '#9ca3af'};">${d.in_our_sync ? '✓' : '○'}</span>
+                                        ${escapeHtml(d.name || '(unnamed)')}
+                                        <span style="color: #9ca3af; margin-left: 8px;">${d.type || ''}</span>
+                                    </div>
+                                `).join('')}
+                                ${(data.elevenlabs_documents || []).length === 0 ? '<div style="color: #9ca3af; padding: 8px 0;">No documents returned by ElevenLabs list API.</div>' : ''}
+                            </div>
+                        </details>
+                    </div>
+                `;
+            } catch (e) {
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <div class="answer-card" style="border-left: 3px solid #dc2626;">
+                        <div style="color: #dc2626;">${escapeHtml(e.message)}</div>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Verify in ElevenLabs';
+            }
+        }
+
+        // ============== UTILITIES ==============
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function escapeJs(text) {
+            if (!text) return '';
+            return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+        }
+
+        function formatDate(isoString) {
+            if (!isoString) return '-';
+            const date = new Date(isoString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // ============== INITIAL LOAD ==============
+        loadFlaggedQuestions();
+        loadInstantAnswers();
+        loadSuggestedAnswers();
+        loadSources();
+        loadGoogleDocs();
+        loadDriveFolders();
+        loadElevenLabsStatus();
+    </script>
+</body>
+</html>
