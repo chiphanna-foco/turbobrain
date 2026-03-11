@@ -20,6 +20,7 @@ from .api.admin_api import router as admin_router
 from .api.instant_answers_api import router as instant_answers_router
 from .api.google_docs_api import router as google_docs_router
 from .api.intercom_api import router as intercom_router
+from .api.confluence_api import router as confluence_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -60,6 +61,11 @@ async def lifespan(app: FastAPI):
     await sync_all_intercom()
     asyncio.create_task(intercom_refresh_loop())
 
+    # Run initial Confluence sync and start periodic refresh
+    from .services.confluence_sync import sync_all_confluence, confluence_refresh_loop
+    await sync_all_confluence()
+    asyncio.create_task(confluence_refresh_loop())
+
     yield
     logger.info("Shutting down...")
 
@@ -85,6 +91,7 @@ app.include_router(search_router)
 app.include_router(instant_answers_router)
 app.include_router(google_docs_router)
 app.include_router(intercom_router)
+app.include_router(confluence_router)
 app.include_router(admin_router)
 
 # Static files for admin dashboard

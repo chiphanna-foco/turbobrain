@@ -29,6 +29,7 @@ class KnowledgeDocument(Base):
     category = Column(String(100), nullable=False)
     file_path = Column(String(500), nullable=True)
     workspace = Column(String(100), nullable=True)
+    tags = Column(JSON, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -40,6 +41,7 @@ class KnowledgeDocument(Base):
             "category": self.category,
             "filePath": self.file_path,
             "workspace": self.workspace,
+            "tags": self.tags or [],
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -220,6 +222,43 @@ class IntercomWorkspace(Base):
         }
 
 
+class ConfluenceSpace(Base):
+    """Tracks Confluence spaces for page sync."""
+
+    __tablename__ = "confluence_spaces"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(200), nullable=False)
+    domain = Column(String(500), nullable=False)   # e.g. mycompany.atlassian.net
+    email = Column(String(200), nullable=False)
+    api_token = Column(Text, nullable=False)
+    space_key = Column(String(100), nullable=False)
+    workspace = Column(String(100), nullable=True)
+    enabled = Column(Boolean, default=True)
+    last_synced_at = Column(DateTime, nullable=True)
+    last_sync_status = Column(String(20), nullable=True)
+    last_error = Column(Text, nullable=True)
+    page_count = Column(Float, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "domain": self.domain,
+            "email": self.email,
+            "spaceKey": self.space_key,
+            "workspace": self.workspace,
+            "enabled": self.enabled,
+            "lastSyncedAt": self.last_synced_at.isoformat() if self.last_synced_at else None,
+            "lastSyncStatus": self.last_sync_status,
+            "lastError": self.last_error,
+            "pageCount": int(self.page_count or 0),
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class UnansweredQuestion(Base):
     """Tracks questions the system couldn't answer."""
 
@@ -263,6 +302,7 @@ async def init_db():
             "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS workspace VARCHAR(100)",
             "ALTER TABLE google_doc_sources ADD COLUMN IF NOT EXISTS workspace VARCHAR(100)",
             "ALTER TABLE google_drive_folders ADD COLUMN IF NOT EXISTS workspace VARCHAR(100)",
+            "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS tags JSONB",
         ]
         async with engine.begin() as conn:
             for sql in migrations:
@@ -270,15 +310,16 @@ async def init_db():
     else:
         # SQLite: check and add columns individually
         async with engine.begin() as conn:
-            for table, col in [
-                ("knowledge_documents", "workspace"),
-                ("google_doc_sources", "workspace"),
-                ("google_drive_folders", "workspace"),
+            for table, col, col_type in [
+                ("knowledge_documents", "workspace", "VARCHAR(100)"),
+                ("google_doc_sources", "workspace", "VARCHAR(100)"),
+                ("google_drive_folders", "workspace", "VARCHAR(100)"),
+                ("knowledge_documents", "tags", "JSON"),
             ]:
                 result = await conn.execute(text(f"PRAGMA table_info({table})"))
                 cols = [row[1] for row in result.fetchall()]
                 if col not in cols:
-                    await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} VARCHAR(100)"))
+                    await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
 
 
 async def import_knowledge_from_files():

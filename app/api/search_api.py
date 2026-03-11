@@ -55,6 +55,7 @@ async def search_knowledge_base(
     query: str = Query(..., min_length=3, description="Search query"),
     max_results: int = Query(default=10, description="Maximum results to return"),
     workspace: Optional[str] = Query(default=None, description="Filter by workspace/brand"),
+    tag: Optional[str] = Query(default=None, description="Filter by content tag (features, SOP, workaround, known issue, legal, general)"),
 ):
     """Search instant answers and knowledge documents."""
     search_text = query.lower()
@@ -107,6 +108,9 @@ async def search_knowledge_base(
             query_stmt = query_stmt.where(KnowledgeDocument.workspace == workspace)
         result = await db.execute(query_stmt)
         documents = result.scalars().all()
+        # Client-side tag filter (JSON array contains check)
+        if tag:
+            documents = [d for d in documents if d.tags and tag in d.tags]
 
         if documents:
             matches = []
@@ -143,6 +147,7 @@ async def search_knowledge_base(
                     "title": doc.title,
                     "category": doc.category,
                     "workspace": doc.workspace,
+                    "tags": doc.tags or [],
                     "content": match["snippet"],
                     "relevance_score": min(1.0, match["score"] / 10.0),
                     "matched_words": match["matched_words"],

@@ -29,6 +29,7 @@ class KnowledgeDocumentCreate(BaseModel):
     category: str
     filePath: Optional[str] = None
     workspace: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 
 class KnowledgeDocumentUpdate(BaseModel):
@@ -37,6 +38,7 @@ class KnowledgeDocumentUpdate(BaseModel):
     category: Optional[str] = None
     filePath: Optional[str] = None
     workspace: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 
 @router.get("/knowledge")
@@ -77,6 +79,7 @@ async def create_knowledge_document(data: KnowledgeDocumentCreate):
             category=data.category,
             file_path=data.filePath,
             workspace=data.workspace,
+            tags=data.tags or [],
         )
         db.add(doc)
         await db.commit()
@@ -106,6 +109,8 @@ async def update_knowledge_document(doc_id: str, data: KnowledgeDocumentUpdate):
             doc.file_path = data.filePath
         if data.workspace is not None:
             doc.workspace = data.workspace
+        if data.tags is not None:
+            doc.tags = data.tags
 
         doc.updated_at = datetime.utcnow()
         await db.commit()

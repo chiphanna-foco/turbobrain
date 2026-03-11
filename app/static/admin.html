@@ -426,6 +426,59 @@
                 <div id="intercom-workspaces-list"></div>
             </div>
 
+            <!-- Confluence Spaces -->
+            <div style="margin-bottom: 30px; padding-bottom: 24px; border-bottom: 2px solid #e5e7eb;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div class="section-title">Confluence Spaces</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-outline btn-sm" onclick="syncAllConfluence()">Sync All Now</button>
+                        <button class="btn btn-primary btn-sm" onclick="toggleConfluenceForm()">+ Add Space</button>
+                    </div>
+                </div>
+                <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 12px;">
+                    Sync Confluence Cloud pages into the knowledge base automatically every 24 hours. Use a Confluence API token and space key.
+                </p>
+                <div id="confluence-add-form" style="display: none; margin-bottom: 16px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                        <div class="form-group" style="flex: 1; min-width: 120px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Space Name</label>
+                            <input type="text" id="conf-name" placeholder="e.g. TurboTenant KB">
+                        </div>
+                        <div class="form-group" style="flex: 1.5; min-width: 160px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Domain</label>
+                            <input type="text" id="conf-domain" placeholder="mycompany.atlassian.net">
+                        </div>
+                        <div class="form-group" style="flex: 1.5; min-width: 160px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Email</label>
+                            <input type="text" id="conf-email" placeholder="you@company.com">
+                        </div>
+                        <div class="form-group" style="flex: 1.5; min-width: 160px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">API Token</label>
+                            <input type="password" id="conf-token" placeholder="ATATT...">
+                        </div>
+                        <div class="form-group" style="min-width: 100px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Space Key</label>
+                            <input type="text" id="conf-space-key" placeholder="KB">
+                        </div>
+                        <div class="form-group" style="min-width: 130px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Brand</label>
+                            <select id="conf-workspace" style="padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; width: 100%;">
+                                <option value="">General (All)</option>
+                                <option value="TurboTenant">TurboTenant</option>
+                                <option value="Rentler">Rentler</option>
+                                <option value="TenantCloud">TenantCloud</option>
+                                <option value="REI Hub">REI Hub</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="addConfluenceSpace()" style="white-space: nowrap;">Add & Sync</button>
+                        <button class="btn btn-secondary btn-sm" onclick="toggleConfluenceForm()" style="white-space: nowrap;">Cancel</button>
+                    </div>
+                    <div id="confluence-add-status" style="margin-top: 8px; font-size: 0.85rem;"></div>
+                </div>
+                <div id="confluence-sync-status" style="margin-bottom: 8px; font-size: 0.85rem;"></div>
+                <div id="confluence-spaces-list"></div>
+            </div>
+
             <div class="section-header">
                 <span class="section-title">Knowledge Documents</span>
                 <button class="refresh-link" onclick="loadSources()">Refresh</button>
@@ -576,6 +629,17 @@
                         <option value="Rentler">Rentler</option>
                         <option value="TenantCloud">TenantCloud</option>
                         <option value="REI Hub">REI Hub</option>
+                    </select>
+                </div>
+                <div class="form-group" style="min-width: 160px; margin-bottom: 0;">
+                    <select id="sim-tag" style="padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; width: 100%; height: 38px;">
+                        <option value="">All Tags</option>
+                        <option value="features">Features</option>
+                        <option value="SOP">SOP</option>
+                        <option value="workaround">Workaround</option>
+                        <option value="known issue">Known Issue</option>
+                        <option value="legal">Legal</option>
+                        <option value="general">General</option>
                     </select>
                 </div>
                 <button class="btn btn-purple" onclick="runSuggestionsSearch()" id="sim-run-btn">Search</button>
@@ -960,6 +1024,163 @@
             }
         }
 
+        // ============== CONFLUENCE ==============
+
+        async function loadConfluenceSpaces() {
+            try {
+                const res = await fetch(`${API_BASE}/api/confluence/spaces`);
+                const data = await res.json();
+                const listDiv = document.getElementById('confluence-spaces-list');
+
+                if (!data.spaces || data.spaces.length === 0) {
+                    listDiv.innerHTML = '<div class="empty-state">No Confluence spaces configured yet. Click "+ Add Space" to get started.</div>';
+                    return;
+                }
+
+                listDiv.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #e5e7eb; text-align: left;">
+                                <th style="padding: 8px 6px;">Name</th>
+                                <th style="padding: 8px 6px;">Space Key</th>
+                                <th style="padding: 8px 6px;">Brand</th>
+                                <th style="padding: 8px 6px;">Pages</th>
+                                <th style="padding: 8px 6px;">Last Synced</th>
+                                <th style="padding: 8px 6px;">Status</th>
+                                <th style="padding: 8px 6px; text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.spaces.map(s => `
+                                <tr style="border-bottom: 1px solid #f3f4f6;">
+                                    <td style="padding: 8px 6px;">
+                                        <div style="font-weight: 500;">${escapeHtml(s.name)}</div>
+                                        <div style="font-size: 0.75rem; color: #9ca3af;">${escapeHtml(s.domain)}</div>
+                                    </td>
+                                    <td style="padding: 8px 6px;"><code style="font-size: 0.8rem;">${escapeHtml(s.spaceKey)}</code></td>
+                                    <td style="padding: 8px 6px;">
+                                        ${s.workspace ? `<span style="background: #ede9fe; color: #5b21b6; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">${escapeHtml(s.workspace)}</span>` : '<span style="color: #9ca3af; font-size: 0.8rem;">—</span>'}
+                                    </td>
+                                    <td style="padding: 8px 6px; color: #6b7280;">${s.pageCount}</td>
+                                    <td style="padding: 8px 6px; color: #6b7280;">
+                                        ${s.lastSyncedAt ? new Date(s.lastSyncedAt).toLocaleString() : 'Never'}
+                                    </td>
+                                    <td style="padding: 8px 6px;">
+                                        ${s.lastSyncStatus === 'success' ? '<span style="color: #059669;">&#10003; Synced</span>' :
+                                          s.lastSyncStatus === 'error' ? `<span style="color: #dc2626;" title="${escapeHtml(s.lastError || '')}">&#10007; Error</span>` :
+                                          '<span style="color: #9ca3af;">&#8212; Pending</span>'}
+                                    </td>
+                                    <td style="padding: 8px 6px; text-align: right; white-space: nowrap;">
+                                        <button class="btn btn-outline btn-sm" onclick="syncOneConfluenceSpace('${s.id}')" style="padding: 3px 8px; font-size: 0.75rem;">Sync</button>
+                                        <button class="btn btn-outline btn-sm" onclick="removeConfluenceSpace('${s.id}', '${escapeJs(s.name)}')" style="padding: 3px 8px; font-size: 0.75rem; color: #dc2626; border-color: #fecaca;">Remove</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (e) {
+                document.getElementById('confluence-spaces-list').innerHTML =
+                    `<div class="empty-state" style="color: #dc2626;">Error loading Confluence spaces: ${e.message}</div>`;
+            }
+        }
+
+        function toggleConfluenceForm() {
+            const form = document.getElementById('confluence-add-form');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            if (form.style.display === 'block') {
+                document.getElementById('conf-name').focus();
+            }
+        }
+
+        async function addConfluenceSpace() {
+            const name = document.getElementById('conf-name').value.trim();
+            const domain = document.getElementById('conf-domain').value.trim();
+            const email = document.getElementById('conf-email').value.trim();
+            const apiToken = document.getElementById('conf-token').value.trim();
+            const spaceKey = document.getElementById('conf-space-key').value.trim();
+            const workspace = document.getElementById('conf-workspace').value || null;
+            const statusDiv = document.getElementById('confluence-add-status');
+
+            if (!name || !domain || !email || !apiToken || !spaceKey) {
+                statusDiv.innerHTML = '<span style="color: #dc2626;">All fields are required.</span>';
+                return;
+            }
+
+            statusDiv.innerHTML = '<span style="color: #6b7280;">Adding and syncing (this may take a moment)...</span>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/confluence/spaces`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, domain, email, apiToken, spaceKey, workspace }),
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Failed to add');
+                }
+                const data = await res.json();
+                const sr = data.syncResult || {};
+                statusDiv.innerHTML = `<span style="color: #059669;">Added! Synced ${sr.synced || 0} new, ${sr.updated || 0} updated of ${sr.total_pages || 0} pages.</span>`;
+
+                document.getElementById('conf-name').value = '';
+                document.getElementById('conf-domain').value = '';
+                document.getElementById('conf-email').value = '';
+                document.getElementById('conf-token').value = '';
+                document.getElementById('conf-space-key').value = '';
+
+                setTimeout(() => {
+                    document.getElementById('confluence-add-form').style.display = 'none';
+                    statusDiv.innerHTML = '';
+                }, 3000);
+
+                loadConfluenceSpaces();
+            } catch (e) {
+                statusDiv.innerHTML = `<span style="color: #dc2626;">Error: ${e.message}</span>`;
+            }
+        }
+
+        async function syncOneConfluenceSpace(spaceId) {
+            const statusDiv = document.getElementById('confluence-sync-status');
+            statusDiv.innerHTML = '<span style="color: #6b7280;">Syncing...</span>';
+            try {
+                const res = await fetch(`${API_BASE}/api/confluence/spaces/${spaceId}/sync`, { method: 'POST' });
+                const data = await res.json();
+                statusDiv.innerHTML = `<span style="color: #059669;">Sync complete: ${data.synced || 0} new, ${data.updated || 0} updated of ${data.total_pages || 0} pages</span>`;
+                setTimeout(() => { statusDiv.innerHTML = ''; }, 4000);
+                loadConfluenceSpaces();
+            } catch (e) {
+                statusDiv.innerHTML = `<span style="color: #dc2626;">Sync error: ${e.message}</span>`;
+            }
+        }
+
+        async function syncAllConfluence() {
+            const statusDiv = document.getElementById('confluence-sync-status');
+            statusDiv.innerHTML = '<span style="color: #6b7280;">Syncing all Confluence spaces...</span>';
+            try {
+                const res = await fetch(`${API_BASE}/api/confluence/sync-all`, { method: 'POST' });
+                const data = await res.json();
+                const results = data.results || [];
+                const totalNew = results.reduce((sum, r) => sum + (r.synced || 0), 0);
+                const totalUpdated = results.reduce((sum, r) => sum + (r.updated || 0), 0);
+                statusDiv.innerHTML = `<span style="color: #059669;">Sync complete: ${totalNew} new, ${totalUpdated} updated across ${results.length} space(s)</span>`;
+                setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
+                loadConfluenceSpaces();
+            } catch (e) {
+                statusDiv.innerHTML = `<span style="color: #dc2626;">Sync error: ${e.message}</span>`;
+            }
+        }
+
+        async function removeConfluenceSpace(spaceId, name) {
+            if (!confirm(`Remove Confluence space "${name}"? All synced pages will be removed from the knowledge base.`)) return;
+            try {
+                await fetch(`${API_BASE}/api/confluence/spaces/${spaceId}`, { method: 'DELETE' });
+                loadConfluenceSpaces();
+            } catch (e) {
+                alert('Error removing: ' + e.message);
+            }
+        }
+
         // ============== GOOGLE DOCS SYNC ==============
 
         async function loadGoogleDocs() {
@@ -1316,6 +1537,7 @@
                             <div class="result-title">
                                 ${escapeHtml(r.title || 'Untitled')}
                                 ${r.workspace ? `<span style="margin-left: 8px; background: #ede9fe; color: #5b21b6; padding: 1px 7px; border-radius: 10px; font-size: 0.75rem; font-weight: 500;">${escapeHtml(r.workspace)}</span>` : ''}
+                                ${(r.tags || []).map(t => `<span style="margin-left: 4px; background: #dbeafe; color: #1e40af; padding: 1px 7px; border-radius: 10px; font-size: 0.72rem;">${escapeHtml(t)}</span>`).join('')}
                             </div>
                             <div class="result-content">${escapeHtml((r.content || '').slice(0, 300))}</div>
                             ${r.relevance_score ? `<div class="result-score">${Math.round(r.relevance_score * 100)}% match</div>` : ''}
@@ -1347,8 +1569,10 @@
 
             try {
                 const workspace = document.getElementById('sim-workspace').value;
+                const tag = document.getElementById('sim-tag').value;
                 const wsParam = workspace ? `&workspace=${encodeURIComponent(workspace)}` : '';
-                const suggestionsUrl = `${API_BASE}/api/search?query=${encodeURIComponent(query)}${wsParam}`;
+                const tagParam = tag ? `&tag=${encodeURIComponent(tag)}` : '';
+                const suggestionsUrl = `${API_BASE}/api/search?query=${encodeURIComponent(query)}${wsParam}${tagParam}`;
                 const suggestionsRes = await fetch(suggestionsUrl);
 
                 if (!suggestionsRes.ok) {
@@ -1379,6 +1603,7 @@
                             <div class="result-title">
                                 ${escapeHtml(r.title || 'Untitled')}
                                 ${r.workspace ? `<span style="margin-left: 8px; background: #ede9fe; color: #5b21b6; padding: 1px 7px; border-radius: 10px; font-size: 0.75rem; font-weight: 500;">${escapeHtml(r.workspace)}</span>` : ''}
+                                ${(r.tags || []).map(t => `<span style="margin-left: 4px; background: #dbeafe; color: #1e40af; padding: 1px 7px; border-radius: 10px; font-size: 0.72rem;">${escapeHtml(t)}</span>`).join('')}
                             </div>
                             <div class="result-content">${escapeHtml((r.content || '').slice(0, 300))}</div>
                             ${r.relevance_score ? `<div class="result-score">${Math.round(r.relevance_score * 100)}% match</div>` : ''}
@@ -1852,6 +2077,7 @@
             loadGoogleDocs();
             loadDriveFolders();
             loadIntercomWorkspaces();
+            loadConfluenceSpaces();
             loadElevenLabsStatus();
         }
 
