@@ -183,6 +183,37 @@ class ElevenLabsSync(Base):
     synced_at = Column(DateTime, default=datetime.utcnow)
 
 
+class IntercomWorkspace(Base):
+    """Tracks Intercom workspaces for Help Center article sync."""
+
+    __tablename__ = "intercom_workspaces"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(200), nullable=False)
+    access_token = Column(Text, nullable=False)
+    workspace_id = Column(String(100), nullable=True)
+    enabled = Column(Boolean, default=True)
+    last_synced_at = Column(DateTime, nullable=True)
+    last_sync_status = Column(String(20), nullable=True)
+    last_error = Column(Text, nullable=True)
+    article_count = Column(Float, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "workspaceId": self.workspace_id,
+            "enabled": self.enabled,
+            "lastSyncedAt": self.last_synced_at.isoformat() if self.last_synced_at else None,
+            "lastSyncStatus": self.last_sync_status,
+            "lastError": self.last_error,
+            "articleCount": int(self.article_count or 0),
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class UnansweredQuestion(Base):
     """Tracks questions the system couldn't answer."""
 

@@ -389,6 +389,7 @@
         <div class="tabs">
             <button class="tab active" data-tab="sources">Knowledge Sources</button>
             <button class="tab" data-tab="simulator">Test Simulator</button>
+            <button class="tab" data-tab="intercom">Intercom</button>
             <button class="tab" data-tab="elevenlabs">ElevenLabs</button>
         </div>
 
@@ -529,6 +530,44 @@
                     <div id="sim-suggestions-content"></div>
                 </div>
             </div>
+        </div>
+
+        <!-- Intercom Panel -->
+        <div id="intercom" class="panel">
+            <div class="section-header">
+                <div class="section-title">Intercom Help Center Sync</div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-outline btn-sm" onclick="syncAllIntercom()">Sync All Now</button>
+                    <button class="refresh-link" onclick="loadIntercomWorkspaces()">Refresh</button>
+                </div>
+            </div>
+            <p style="font-size: 0.9rem; color: #6b7280; margin-bottom: 20px;">
+                Connect Intercom workspaces to automatically sync published Help Center articles into the knowledge base every 24 hours.
+            </p>
+
+            <!-- Add workspace form -->
+            <div id="intercom-add-form" style="display: none; margin-bottom: 20px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                    <div class="form-group" style="flex: 1; min-width: 140px; margin-bottom: 0;">
+                        <label style="font-size: 0.8rem;">Workspace Name</label>
+                        <input type="text" id="intercom-name" placeholder="e.g. TurboTenant">
+                    </div>
+                    <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
+                        <label style="font-size: 0.8rem;">Access Token</label>
+                        <input type="password" id="intercom-token" placeholder="dG9rOi...">
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="addIntercomWorkspace()" style="white-space: nowrap;">Add & Sync</button>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleIntercomForm()" style="white-space: nowrap;">Cancel</button>
+                </div>
+                <div id="intercom-add-status" style="margin-top: 8px; font-size: 0.85rem;"></div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <button class="btn btn-primary btn-sm" onclick="toggleIntercomForm()">+ Add Workspace</button>
+            </div>
+
+            <div id="intercom-sync-status" style="margin-bottom: 8px; font-size: 0.85rem;"></div>
+            <div id="intercom-workspaces-list"></div>
         </div>
 
         <!-- ElevenLabs Panel -->
@@ -1622,6 +1661,126 @@
             return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
+        // ============== INTERCOM ==============
+
+        function toggleIntercomForm() {
+            const form = document.getElementById('intercom-add-form');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            document.getElementById('intercom-add-status').textContent = '';
+        }
+
+        async function loadIntercomWorkspaces() {
+            const listDiv = document.getElementById('intercom-workspaces-list');
+            listDiv.innerHTML = '<div style="color: #9ca3af; font-size: 0.9rem;">Loading...</div>';
+            try {
+                const res = await fetch(`${API_BASE}/api/intercom/workspaces`);
+                const data = await res.json();
+                const workspaces = data.workspaces || [];
+
+                if (workspaces.length === 0) {
+                    listDiv.innerHTML = '<div class="empty-state">No Intercom workspaces connected. Add one above.</div>';
+                    return;
+                }
+
+                listDiv.innerHTML = workspaces.map(ws => `
+                    <div class="answer-card" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 1rem; margin-bottom: 4px;">${escapeHtml(ws.name)}</div>
+                            <div style="font-size: 0.85rem; color: #6b7280;">
+                                ${ws.articleCount} articles synced
+                                &middot; Last sync: ${ws.lastSyncedAt ? formatDate(ws.lastSyncedAt) : 'Never'}
+                                &middot; Status: <span style="color: ${ws.lastSyncStatus === 'success' ? '#16a34a' : ws.lastSyncStatus === 'error' ? '#dc2626' : '#6b7280'};">${ws.lastSyncStatus || 'pending'}</span>
+                            </div>
+                            ${ws.lastError ? `<div style="font-size: 0.8rem; color: #dc2626; margin-top: 4px;">${escapeHtml(ws.lastError)}</div>` : ''}
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-outline btn-sm" onclick="syncIntercomWorkspace('${ws.id}', this)">Sync Now</button>
+                            <button class="btn btn-secondary btn-sm" onclick="deleteIntercomWorkspace('${ws.id}', '${escapeJs(ws.name)}')">Remove</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                listDiv.innerHTML = `<div style="color: #dc2626;">Error: ${e.message}</div>`;
+            }
+        }
+
+        async function addIntercomWorkspace() {
+            const name = document.getElementById('intercom-name').value.trim();
+            const token = document.getElementById('intercom-token').value.trim();
+            const statusDiv = document.getElementById('intercom-add-status');
+
+            if (!name || !token) { statusDiv.textContent = 'Name and token are required.'; return; }
+            statusDiv.textContent = 'Adding and syncing...';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/intercom/workspaces`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, access_token: token }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed');
+
+                const s = data.sync || {};
+                statusDiv.innerHTML = `<span style="color: #16a34a;">Added! ${s.synced || 0} new, ${s.updated || 0} updated (${s.total_published || 0} published articles)</span>`;
+                document.getElementById('intercom-name').value = '';
+                document.getElementById('intercom-token').value = '';
+                loadIntercomWorkspaces();
+            } catch (e) {
+                statusDiv.innerHTML = `<span style="color: #dc2626;">Error: ${e.message}</span>`;
+            }
+        }
+
+        async function syncIntercomWorkspace(id, btn) {
+            const original = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Syncing...';
+            const statusDiv = document.getElementById('intercom-sync-status');
+            try {
+                const res = await fetch(`${API_BASE}/api/intercom/workspaces/${id}/sync`, { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Sync failed');
+                statusDiv.innerHTML = `<span style="color: #16a34a;">Synced ${data.workspace}: ${data.synced} new, ${data.updated} updated</span>`;
+                setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
+                loadIntercomWorkspaces();
+            } catch (e) {
+                statusDiv.innerHTML = `<span style="color: #dc2626;">${e.message}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = original;
+            }
+        }
+
+        async function syncAllIntercom() {
+            const statusDiv = document.getElementById('intercom-sync-status');
+            statusDiv.textContent = 'Syncing all workspaces...';
+            try {
+                const res = await fetch(`${API_BASE}/api/intercom/sync-all`, { method: 'POST' });
+                const data = await res.json();
+                const results = data.results || [];
+                const ok = results.filter(r => !r.error).length;
+                const err = results.filter(r => r.error).length;
+                statusDiv.innerHTML = `<span style="color: #16a34a;">${ok} workspace(s) synced${err ? `, ${err} error(s)` : ''}</span>`;
+                setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
+                loadIntercomWorkspaces();
+            } catch (e) {
+                statusDiv.innerHTML = `<span style="color: #dc2626;">Error: ${e.message}</span>`;
+            }
+        }
+
+        async function deleteIntercomWorkspace(id, name) {
+            if (!confirm(`Remove "${name}" and delete its synced articles from the KB?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/intercom/workspaces/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Delete failed');
+                loadIntercomWorkspaces();
+                loadSources();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
         // ============== LOGIN ==============
 
         async function submitLogin() {
@@ -1652,6 +1811,7 @@
             loadSources();
             loadGoogleDocs();
             loadDriveFolders();
+            loadIntercomWorkspaces();
             loadElevenLabsStatus();
         }
 

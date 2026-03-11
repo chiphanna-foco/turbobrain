@@ -19,6 +19,7 @@ from .api.search_api import router as search_router
 from .api.admin_api import router as admin_router
 from .api.instant_answers_api import router as instant_answers_router
 from .api.google_docs_api import router as google_docs_router
+from .api.intercom_api import router as intercom_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -54,6 +55,11 @@ async def lifespan(app: FastAPI):
         asyncio.create_task(gen_sugg(all_changed))
     asyncio.create_task(google_docs_refresh_loop())
 
+    # Run initial Intercom sync and start periodic refresh
+    from .services.intercom_sync import sync_all_intercom, intercom_refresh_loop
+    await sync_all_intercom()
+    asyncio.create_task(intercom_refresh_loop())
+
     yield
     logger.info("Shutting down...")
 
@@ -78,6 +84,7 @@ app.add_middleware(
 app.include_router(search_router)
 app.include_router(instant_answers_router)
 app.include_router(google_docs_router)
+app.include_router(intercom_router)
 app.include_router(admin_router)
 
 # Static files for admin dashboard
