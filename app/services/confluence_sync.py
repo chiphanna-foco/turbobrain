@@ -111,6 +111,7 @@ async def _sync_space_inner(space: ConfluenceSpace) -> dict:
 
             file_path = _file_path_for(space.id, page_id)
             new_hash = hashlib.md5(content.encode()).hexdigest()
+            page_url = f"https://{space.domain}/wiki/spaces/{space.space_key}/pages/{page_id}"
 
             result = await db.execute(
                 select(KnowledgeDocument).where(KnowledgeDocument.file_path == file_path)
@@ -123,8 +124,11 @@ async def _sync_space_inner(space: ConfluenceSpace) -> dict:
                     existing.title = title
                     existing.content = content
                     existing.workspace = space.workspace
+                    existing.source_url = page_url
                     existing.updated_at = datetime.utcnow()
                     updated += 1
+                elif not existing.source_url:
+                    existing.source_url = page_url
             else:
                 db.add(KnowledgeDocument(
                     id=str(uuid.uuid4()),
@@ -133,6 +137,7 @@ async def _sync_space_inner(space: ConfluenceSpace) -> dict:
                     category="general",
                     file_path=file_path,
                     workspace=space.workspace,
+                    source_url=page_url,
                 ))
                 synced += 1
 

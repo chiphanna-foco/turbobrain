@@ -150,6 +150,7 @@ async def search_knowledge_base(
                     "tags": doc.tags or [],
                     "content": match["snippet"],        # relevant excerpt
                     "full_content": doc.content,        # complete document text
+                    "source_url": doc.source_url,
                     "relevance_score": min(1.0, match["score"] / 10.0),
                     "matched_words": match["matched_words"],
                 })

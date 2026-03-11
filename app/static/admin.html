@@ -388,12 +388,21 @@
 
         <div class="tabs">
             <button class="tab active" data-tab="sources">Knowledge Sources</button>
+            <button class="tab" data-tab="instant-answers">Instant Answers</button>
             <button class="tab" data-tab="simulator">Test Simulator</button>
             <button class="tab" data-tab="elevenlabs">ElevenLabs</button>
         </div>
 
         <!-- Knowledge Sources Panel -->
         <div id="sources" class="panel active">
+
+            <!-- Danger zone: clear all KB docs -->
+            <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                <div style="font-size: 0.85rem; color: #92400e;">
+                    <strong>Clear All Knowledge Documents</strong> — removes every synced article from the database. Sources will re-sync on next sync cycle.
+                </div>
+                <button class="btn btn-sm" style="background: #dc2626; color: white; border: none; white-space: nowrap;" onclick="clearAllKBDocs()">Clear All Docs</button>
+            </div>
 
             <!-- Intercom Workspaces (top of sources) -->
             <div style="margin-bottom: 30px; padding-bottom: 24px; border-bottom: 2px solid #e5e7eb;">
@@ -688,6 +697,21 @@
 
             <!-- Synced Documents List -->
             <div id="el-documents"></div>
+        </div>
+
+        <!-- Instant Answers Panel -->
+        <div id="instant-answers" class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <div class="section-title">Instant Answers</div>
+                    <p style="font-size: 0.85rem; color: #6b7280; margin-top: 4px;">Curated short answers for common questions.</p>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn btn-sm" style="background: #dc2626; color: white; border: none;" onclick="clearAllInstantAnswers()">Clear All</button>
+                    <button class="btn btn-primary btn-sm" onclick="openAnswerModal()">+ New Answer</button>
+                </div>
+            </div>
+            <div id="answers-list"></div>
         </div>
     </div>
 
@@ -1541,12 +1565,15 @@
                     html += kbResults.map(r => `
                         <div class="result-item">
                             <div class="result-title">
-                                ${escapeHtml(r.title || 'Untitled')}
+                                ${r.source_url ? `<a href="${escapeHtml(r.source_url)}" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">${escapeHtml(r.title || 'Untitled')} <span style="font-size: 0.75rem; color: #6366f1;">&#8599;</span></a>` : escapeHtml(r.title || 'Untitled')}
                                 ${r.workspace ? `<span style="margin-left: 8px; background: #ede9fe; color: #5b21b6; padding: 1px 7px; border-radius: 10px; font-size: 0.75rem; font-weight: 500;">${escapeHtml(r.workspace)}</span>` : ''}
                                 ${(r.tags || []).map(t => `<span style="margin-left: 4px; background: #dbeafe; color: #1e40af; padding: 1px 7px; border-radius: 10px; font-size: 0.72rem;">${escapeHtml(t)}</span>`).join('')}
                             </div>
                             <div class="result-content">${escapeHtml((r.content || '').slice(0, 800))}</div>
-                            ${r.relevance_score ? `<div class="result-score">${Math.round(r.relevance_score * 100)}% match</div>` : ''}
+                            <div style="display: flex; gap: 12px; align-items: center; margin-top: 4px;">
+                                ${r.relevance_score ? `<div class="result-score">${Math.round(r.relevance_score * 100)}% match</div>` : ''}
+                                ${r.source_url ? `<a href="${escapeHtml(r.source_url)}" target="_blank" rel="noopener" style="font-size: 0.75rem; color: #6366f1;">View source &#8599;</a>` : ''}
+                            </div>
                         </div>
                     `).join('');
                 }
@@ -2078,6 +2105,29 @@
 
         // ============== INITIAL LOAD ==============
 
+        async function clearAllInstantAnswers() {
+            if (!confirm('Delete ALL instant answers from the database? This cannot be undone.')) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/instant-answers-all`, { method: 'DELETE' });
+                const data = await res.json();
+                alert(`Deleted ${data.deleted} instant answers.`);
+                loadInstantAnswers();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function clearAllKBDocs() {
+            if (!confirm('Delete ALL knowledge documents from the database? Sources will re-sync on the next sync cycle.')) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/knowledge-all`, { method: 'DELETE' });
+                const data = await res.json();
+                alert(`Deleted ${data.deleted} knowledge documents.`);
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
         function initDashboard() {
             loadSources();
             loadGoogleDocs();
@@ -2085,6 +2135,7 @@
             loadIntercomWorkspaces();
             loadConfluenceSpaces();
             loadElevenLabsStatus();
+            loadInstantAnswers();
         }
 
         if (sessionStorage.getItem('turbobrain_auth') === '1') {

@@ -30,6 +30,7 @@ class KnowledgeDocument(Base):
     file_path = Column(String(500), nullable=True)
     workspace = Column(String(100), nullable=True)
     tags = Column(JSON, default=list)
+    source_url = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -42,6 +43,7 @@ class KnowledgeDocument(Base):
             "filePath": self.file_path,
             "workspace": self.workspace,
             "tags": self.tags or [],
+            "sourceUrl": self.source_url,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -303,6 +305,7 @@ async def init_db():
             "ALTER TABLE google_doc_sources ADD COLUMN IF NOT EXISTS workspace VARCHAR(100)",
             "ALTER TABLE google_drive_folders ADD COLUMN IF NOT EXISTS workspace VARCHAR(100)",
             "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS tags JSONB",
+            "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS source_url TEXT",
         ]
         async with engine.begin() as conn:
             for sql in migrations:
@@ -315,6 +318,7 @@ async def init_db():
                 ("google_doc_sources", "workspace", "VARCHAR(100)"),
                 ("google_drive_folders", "workspace", "VARCHAR(100)"),
                 ("knowledge_documents", "tags", "JSON"),
+                ("knowledge_documents", "source_url", "TEXT"),
             ]:
                 result = await conn.execute(text(f"PRAGMA table_info({table})"))
                 cols = [row[1] for row in result.fetchall()]

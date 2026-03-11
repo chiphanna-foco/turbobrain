@@ -368,6 +368,20 @@ async def delete_all_instant_answers():
     return {"deleted": count}
 
 
+@router.delete("/knowledge-all")
+async def delete_all_knowledge_docs():
+    """Delete all knowledge documents from the database."""
+    async with async_session() as db:
+        result = await db.execute(select(KnowledgeDocument))
+        docs = result.scalars().all()
+        count = len(docs)
+        for d in docs:
+            await db.delete(d)
+        await db.commit()
+    logger.info(f"Deleted all {count} knowledge documents")
+    return {"deleted": count}
+
+
 @router.get("/elevenlabs/verify")
 async def elevenlabs_verify_documents():
     """Verify documents exist in ElevenLabs workspace."""

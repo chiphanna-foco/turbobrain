@@ -67,6 +67,7 @@ async def _sync_source(source: GoogleDocSource) -> dict:
         # Content changed — upsert KnowledgeDocument
         file_path_key = f"gdoc:{source.google_doc_id}"
         changed_doc_id = None
+        doc_url = f"https://docs.google.com/document/d/{source.google_doc_id}"
 
         async with async_session() as db:
             # Upsert KnowledgeDocument
@@ -82,6 +83,7 @@ async def _sync_source(source: GoogleDocSource) -> dict:
                 existing.content = content
                 existing.category = source.category
                 existing.workspace = source.workspace
+                existing.source_url = doc_url
                 existing.updated_at = datetime.utcnow()
                 changed_doc_id = existing.id
             else:
@@ -93,6 +95,7 @@ async def _sync_source(source: GoogleDocSource) -> dict:
                     category=source.category,
                     file_path=file_path_key,
                     workspace=source.workspace,
+                    source_url=doc_url,
                 )
                 db.add(doc)
                 changed_doc_id = doc.id
