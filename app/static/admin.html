@@ -350,65 +350,50 @@
         .draft-status.accepted { background: #d1fae5; color: #065f46; }
         .draft-status.rejected { background: #fee2e2; color: #991b1b; }
         .draft-status.pending { background: #fef3c7; color: #92400e; }
+
+        /* Login overlay */
+        #login-overlay {
+            position: fixed; inset: 0; background: #f9fafb;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
+        }
+        #login-overlay.hidden { display: none; }
+        .login-box {
+            background: white; border: 1px solid #e5e7eb; border-radius: 16px;
+            padding: 40px; width: 360px; box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+        .login-box h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+        .login-box p { color: #6b7280; font-size: 0.9rem; margin-bottom: 24px; }
+        #login-error { color: #dc2626; font-size: 0.85rem; margin-top: 8px; min-height: 20px; }
     </style>
 </head>
 <body>
+    <!-- Login Overlay -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>TurboBrain Admin</h2>
+            <p>Enter your admin password to continue.</p>
+            <div class="form-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" placeholder="Password" onkeydown="if(event.key==='Enter') submitLogin()">
+            </div>
+            <button class="btn btn-purple" onclick="submitLogin()" style="width: 100%; margin-top: 8px;">Sign In</button>
+            <div id="login-error"></div>
+        </div>
+    </div>
+
     <div class="container">
         <h1>TurboBrain Admin</h1>
         <div class="subtitle">Knowledge Base & ElevenLabs Management</div>
 
         <div class="tabs">
-            <button class="tab active" data-tab="flagged">
-                Flagged Questions
-                <span class="tab-badge" id="flagged-count" style="display:none;">0</span>
-            </button>
-            <button class="tab" data-tab="answers">
-                Instant Answers
-                <span class="tab-badge" id="suggested-count" style="display:none; background: #7c3aed;">0</span>
-            </button>
-            <button class="tab" data-tab="sources">Knowledge Sources</button>
+            <button class="tab active" data-tab="sources">Knowledge Sources</button>
             <button class="tab" data-tab="simulator">Test Simulator</button>
             <button class="tab" data-tab="elevenlabs">ElevenLabs</button>
         </div>
 
-        <!-- Flagged Questions Panel -->
-        <div id="flagged" class="panel active">
-            <div class="section-header">
-                <div>
-                    <span class="section-title">Unanswered Questions</span>
-                    <label style="margin-left: 20px; font-size: 0.85rem; color: #6b7280;">
-                        <input type="checkbox" id="unresolved-only" checked onchange="loadFlaggedQuestions()" style="margin-right: 4px;">
-                        Show unresolved only
-                    </label>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="refresh-link" onclick="loadFlaggedQuestions()">Refresh</button>
-                    <button class="btn btn-secondary btn-sm" onclick="clearResolved()">Clear Resolved</button>
-                </div>
-            </div>
-            <div id="flagged-list"></div>
-        </div>
-
-        <!-- Instant Answers Panel -->
-        <div id="answers" class="panel">
-            <!-- AI-Suggested Answers Section -->
-            <div id="suggested-section" style="display: none; margin-bottom: 24px;">
-                <div class="section-header">
-                    <span class="section-title" style="color: #7c3aed;">AI-Suggested Answers</span>
-                    <button class="refresh-link" onclick="loadSuggestedAnswers()" style="color: #7c3aed;">Refresh</button>
-                </div>
-                <div id="suggested-list"></div>
-            </div>
-
-            <div class="section-header">
-                <span class="section-title">Instant Answer Cache</span>
-                <button class="btn btn-primary" onclick="openAnswerModal()">+ Add Answer</button>
-            </div>
-            <div id="answers-list"></div>
-        </div>
-
         <!-- Knowledge Sources Panel -->
-        <div id="sources" class="panel">
+        <div id="sources" class="panel active">
             <div class="section-header">
                 <span class="section-title">Knowledge Sources</span>
                 <button class="refresh-link" onclick="loadSources()">Refresh</button>
@@ -513,10 +498,9 @@
                 <div class="section-title" style="margin-bottom: 15px;">Test Search</div>
                 <div class="test-search-row">
                     <div class="form-group">
-                        <input type="text" id="kb-query" placeholder="Enter a test query...">
+                        <input type="text" id="kb-query" placeholder="Enter a test query..." onkeydown="if(event.key==='Enter') testKBSearch()">
                     </div>
-                    <button class="btn btn-outline" onclick="testFrontSearch()">Test Front</button>
-                    <button class="btn btn-outline" onclick="testOpenAISearch()">Test OpenAI</button>
+                    <button class="btn btn-outline" onclick="testKBSearch()">Search KB</button>
                 </div>
                 <div id="kb-results" style="margin-top: 15px;"></div>
             </div>
@@ -1221,64 +1205,51 @@
             }
         }
 
-        async function testFrontSearch() {
+        async function testKBSearch() {
             const query = document.getElementById('kb-query').value.trim();
             if (!query) { alert('Enter a search query'); return; }
 
             const resultsDiv = document.getElementById('kb-results');
-            resultsDiv.innerHTML = '<div style="color: #9ca3af;">Searching Front...</div>';
+            resultsDiv.innerHTML = '<div style="color: #9ca3af;">Searching...</div>';
 
             try {
-                const res = await fetch(`${API_BASE}/api/sources/front/test?query=${encodeURIComponent(query)}`, { method: 'POST' });
+                const res = await fetch(`${API_BASE}/api/search?query=${encodeURIComponent(query)}`);
                 const data = await res.json();
 
-                if (!data.results || data.results.length === 0) {
-                    resultsDiv.innerHTML = '<div class="empty-state">No Front results found.</div>';
+                const instantAnswers = data.instant_answers || [];
+                const kbResults = data.knowledge_results || [];
+
+                if (instantAnswers.length === 0 && kbResults.length === 0) {
+                    resultsDiv.innerHTML = '<div class="empty-state">No results found.</div>';
                     return;
                 }
 
-                resultsDiv.innerHTML = `
-                    <div style="margin-bottom: 10px; font-size: 0.85rem; color: #6b7280;">
-                        ${data.count} results | Variations: ${(data.search_variations || []).join(', ')}
-                    </div>
-                    ${data.results.map(r => `
+                let html = `<div style="margin-bottom: 10px; font-size: 0.85rem; color: #6b7280;">
+                    ${instantAnswers.length} instant answer(s) &middot; ${kbResults.length} knowledge result(s)
+                </div>`;
+
+                if (instantAnswers.length > 0) {
+                    html += `<div style="font-weight: 500; margin-bottom: 8px;">Instant Answers:</div>`;
+                    html += instantAnswers.map(a => `
                         <div class="result-item">
-                            <div class="result-title">${escapeHtml(r.subject || r.title || 'Untitled')}</div>
-                            <div class="result-content">${escapeHtml((r.content || r.excerpt || '').slice(0, 200))}</div>
+                            <div class="result-title">${escapeHtml(a.key)}</div>
+                            <div class="result-content">${escapeHtml((a.answer || '').slice(0, 300))}</div>
                         </div>
-                    `).join('')}
-                `;
-            } catch (e) {
-                resultsDiv.innerHTML = `<div style="color: #dc2626;">Error: ${e.message}</div>`;
-            }
-        }
-
-        async function testOpenAISearch() {
-            const query = document.getElementById('kb-query').value.trim();
-            if (!query) { alert('Enter a search query'); return; }
-
-            const resultsDiv = document.getElementById('kb-results');
-            resultsDiv.innerHTML = '<div style="color: #9ca3af;">Searching OpenAI...</div>';
-
-            try {
-                const res = await fetch(`${API_BASE}/api/sources/openai/test?query=${encodeURIComponent(query)}`, { method: 'POST' });
-                const data = await res.json();
-
-                if (!data.results || data.results.length === 0) {
-                    resultsDiv.innerHTML = '<div class="empty-state">No OpenAI results found.</div>';
-                    return;
+                    `).join('');
                 }
 
-                resultsDiv.innerHTML = `
-                    <div style="margin-bottom: 10px; font-size: 0.85rem; color: #6b7280;">${data.count} results</div>
-                    ${data.results.map(r => `
+                if (kbResults.length > 0) {
+                    html += `<div style="font-weight: 500; margin-top: 12px; margin-bottom: 8px;">Knowledge Base:</div>`;
+                    html += kbResults.map(r => `
                         <div class="result-item">
                             <div class="result-title">${escapeHtml(r.title || 'Untitled')}</div>
                             <div class="result-content">${escapeHtml((r.content || '').slice(0, 300))}</div>
                             ${r.relevance_score ? `<div class="result-score">${Math.round(r.relevance_score * 100)}% match</div>` : ''}
                         </div>
-                    `).join('')}
-                `;
+                    `).join('');
+                }
+
+                resultsDiv.innerHTML = html;
             } catch (e) {
                 resultsDiv.innerHTML = `<div style="color: #dc2626;">Error: ${e.message}</div>`;
             }
@@ -1301,8 +1272,8 @@
             document.getElementById('sim-suggestions-content').innerHTML = '';
 
             try {
-                const suggestionsUrl = `${API_BASE}/api/suggestions?query=${encodeURIComponent(query)}`;
-                const suggestionsRes = await fetch(suggestionsUrl, { method: 'POST' });
+                const suggestionsUrl = `${API_BASE}/api/search?query=${encodeURIComponent(query)}`;
+                const suggestionsRes = await fetch(suggestionsUrl);
 
                 if (!suggestionsRes.ok) {
                     throw new Error(`HTTP ${suggestionsRes.status}`);
@@ -1651,14 +1622,43 @@
             return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
+        // ============== LOGIN ==============
+
+        async function submitLogin() {
+            const pw = document.getElementById('login-password').value;
+            const errDiv = document.getElementById('login-error');
+            errDiv.textContent = '';
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pw })
+                });
+                if (res.ok) {
+                    sessionStorage.setItem('turbobrain_auth', '1');
+                    document.getElementById('login-overlay').classList.add('hidden');
+                    initDashboard();
+                } else {
+                    errDiv.textContent = 'Incorrect password.';
+                }
+            } catch (e) {
+                errDiv.textContent = 'Connection error: ' + e.message;
+            }
+        }
+
         // ============== INITIAL LOAD ==============
-        loadFlaggedQuestions();
-        loadInstantAnswers();
-        loadSuggestedAnswers();
-        loadSources();
-        loadGoogleDocs();
-        loadDriveFolders();
-        loadElevenLabsStatus();
+
+        function initDashboard() {
+            loadSources();
+            loadGoogleDocs();
+            loadDriveFolders();
+            loadElevenLabsStatus();
+        }
+
+        if (sessionStorage.getItem('turbobrain_auth') === '1') {
+            document.getElementById('login-overlay').classList.add('hidden');
+            initDashboard();
+        }
     </script>
 </body>
 </html>

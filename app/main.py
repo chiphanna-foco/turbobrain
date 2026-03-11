@@ -1,10 +1,10 @@
 """FastAPI application entry point for TurboBrain."""
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import asyncio
 import logging
@@ -87,19 +87,23 @@ if os.path.exists(static_dir):
 
 
 # Admin authentication
-security = HTTPBasic()
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "turbobrain")
 
 
-def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
-    correct = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
-    if not correct:
-        raise HTTPException(status_code=401, detail="Incorrect password")
-    return credentials
+class LoginRequest(BaseModel):
+    password: str
+
+
+@app.post("/api/admin/login")
+async def admin_login(body: LoginRequest):
+    """Verify admin password."""
+    if secrets.compare_digest(body.password, ADMIN_PASSWORD):
+        return {"ok": True}
+    raise HTTPException(status_code=401, detail="Incorrect password")
 
 
 @app.get("/admin")
-async def admin_page(credentials: HTTPBasicCredentials = Depends(verify_admin)):
+async def admin_page():
     """Serve the admin dashboard."""
     admin_path = os.path.join(static_dir, "admin.html")
     if not os.path.exists(admin_path):
