@@ -86,6 +86,7 @@ async def sync_workspace(workspace: IntercomWorkspace) -> dict:
                 if old_hash != new_hash:
                     existing.title = title
                     existing.content = content
+                    existing.workspace = workspace.name
                     existing.updated_at = datetime.utcnow()
                     updated += 1
             else:
@@ -95,6 +96,7 @@ async def sync_workspace(workspace: IntercomWorkspace) -> dict:
                     content=content,
                     category="general",
                     file_path=file_path,
+                    workspace=workspace.name,
                 ))
                 synced += 1
 

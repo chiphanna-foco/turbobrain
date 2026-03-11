@@ -1,7 +1,7 @@
 """Search API for querying the knowledge base."""
 from __future__ import annotations
 from fastapi import APIRouter, Query
-from typing import List
+from typing import List, Optional
 from sqlalchemy import select
 import logging
 
@@ -54,6 +54,7 @@ def extract_snippet(content: str, keywords: List[str], max_length: int = 200) ->
 async def search_knowledge_base(
     query: str = Query(..., min_length=3, description="Search query"),
     max_results: int = Query(default=10, description="Maximum results to return"),
+    workspace: Optional[str] = Query(default=None, description="Filter by workspace/brand"),
 ):
     """Search instant answers and knowledge documents."""
     search_text = query.lower()
@@ -101,7 +102,10 @@ async def search_knowledge_base(
     # Search knowledge documents
     knowledge_results = []
     async with async_session() as db:
-        result = await db.execute(select(KnowledgeDocument))
+        query_stmt = select(KnowledgeDocument)
+        if workspace:
+            query_stmt = query_stmt.where(KnowledgeDocument.workspace == workspace)
+        result = await db.execute(query_stmt)
         documents = result.scalars().all()
 
         if documents:
@@ -138,6 +142,7 @@ async def search_knowledge_base(
                     "id": doc.id,
                     "title": doc.title,
                     "category": doc.category,
+                    "workspace": doc.workspace,
                     "content": match["snippet"],
                     "relevance_score": min(1.0, match["score"] / 10.0),
                     "matched_words": match["matched_words"],

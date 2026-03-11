@@ -28,6 +28,7 @@ class KnowledgeDocument(Base):
     content = Column(Text, nullable=False)
     category = Column(String(100), nullable=False)
     file_path = Column(String(500), nullable=True)
+    workspace = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -38,6 +39,7 @@ class KnowledgeDocument(Base):
             "content": self.content,
             "category": self.category,
             "filePath": self.file_path,
+            "workspace": self.workspace,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -52,6 +54,7 @@ class GoogleDocSource(Base):
     google_doc_id = Column(String(200), nullable=False, unique=True)
     title = Column(String(500), nullable=False)
     category = Column(String(100), nullable=False, default="general")
+    workspace = Column(String(100), nullable=True)
     enabled = Column(Boolean, default=True)
     last_synced_at = Column(DateTime, nullable=True)
     last_sync_status = Column(String(20), nullable=True)
@@ -66,6 +69,7 @@ class GoogleDocSource(Base):
             "googleDocId": self.google_doc_id,
             "title": self.title,
             "category": self.category,
+            "workspace": self.workspace,
             "enabled": self.enabled,
             "lastSyncedAt": self.last_synced_at.isoformat() if self.last_synced_at else None,
             "lastSyncStatus": self.last_sync_status,
@@ -84,6 +88,7 @@ class GoogleDriveFolder(Base):
     folder_id = Column(String(200), nullable=False, unique=True)
     title = Column(String(500), nullable=False)
     category = Column(String(100), nullable=False, default="general")
+    workspace = Column(String(100), nullable=True)
     enabled = Column(Boolean, default=True)
     last_synced_at = Column(DateTime, nullable=True)
     last_sync_status = Column(String(20), nullable=True)
@@ -98,6 +103,7 @@ class GoogleDriveFolder(Base):
             "folderId": self.folder_id,
             "title": self.title,
             "category": self.category,
+            "workspace": self.workspace,
             "enabled": self.enabled,
             "lastSyncedAt": self.last_synced_at.isoformat() if self.last_synced_at else None,
             "lastSyncStatus": self.last_sync_status,

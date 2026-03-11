@@ -81,6 +81,7 @@ async def _sync_source(source: GoogleDocSource) -> dict:
                 existing.title = source.title
                 existing.content = content
                 existing.category = source.category
+                existing.workspace = source.workspace
                 existing.updated_at = datetime.utcnow()
                 changed_doc_id = existing.id
             else:
@@ -91,6 +92,7 @@ async def _sync_source(source: GoogleDocSource) -> dict:
                     content=content,
                     category=source.category,
                     file_path=file_path_key,
+                    workspace=source.workspace,
                 )
                 db.add(doc)
                 changed_doc_id = doc.id
@@ -193,7 +195,7 @@ async def fetch_drive_pdf_text(file_id: str) -> str:
     return "\n\n".join(text_parts)
 
 
-async def _sync_pdf(file_id: str, name: str, category: str) -> dict:
+async def _sync_pdf(file_id: str, name: str, category: str, workspace: str = None) -> dict:
     """Download a PDF from Drive, extract text, and upsert into KnowledgeDocument."""
     try:
         text = await fetch_drive_pdf_text(file_id)
@@ -220,6 +222,7 @@ async def _sync_pdf(file_id: str, name: str, category: str) -> dict:
                 existing.title = name
                 existing.content = text
                 existing.category = category
+                existing.workspace = workspace
                 existing.updated_at = datetime.utcnow()
                 changed_doc_id = existing.id
             else:
@@ -229,6 +232,7 @@ async def _sync_pdf(file_id: str, name: str, category: str) -> dict:
                     content=text,
                     category=category,
                     file_path=file_path_key,
+                    workspace=workspace,
                 )
                 db.add(doc)
                 changed_doc_id = doc.id
@@ -340,6 +344,7 @@ async def sync_folder(folder_record_id: str) -> dict:
                         google_doc_id=doc_info["id"],
                         title=doc_info["name"],
                         category=folder.category,
+                        workspace=folder.workspace,
                     )
                     db.add(source)
                     new_sources += 1
@@ -365,7 +370,7 @@ async def sync_folder(folder_record_id: str) -> dict:
 
         # --- Handle PDFs (direct download + text extraction) ---
         for pdf_info in pdfs:
-            sync_result = await _sync_pdf(pdf_info["id"], pdf_info["name"], folder.category)
+            sync_result = await _sync_pdf(pdf_info["id"], pdf_info["name"], folder.category, folder.workspace)
             if sync_result.get("status") == "updated":
                 synced += 1
                 if sync_result.get("changed_doc_id"):

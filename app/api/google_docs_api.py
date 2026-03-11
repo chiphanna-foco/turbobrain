@@ -31,11 +31,13 @@ class GoogleDocCreate(BaseModel):
     googleDocId: str
     title: str
     category: str = "general"
+    workspace: Optional[str] = None
 
 
 class GoogleDocUpdate(BaseModel):
     title: Optional[str] = None
     category: Optional[str] = None
+    workspace: Optional[str] = None
     enabled: Optional[bool] = None
 
 
@@ -67,6 +69,7 @@ async def add_google_doc(data: GoogleDocCreate):
             google_doc_id=data.googleDocId,
             title=data.title,
             category=data.category,
+            workspace=data.workspace,
         )
         db.add(source)
         await db.commit()
@@ -89,6 +92,8 @@ async def update_google_doc(source_id: str, data: GoogleDocUpdate):
             source.title = data.title
         if data.category is not None:
             source.category = data.category
+        if data.workspace is not None:
+            source.workspace = data.workspace
         if data.enabled is not None:
             source.enabled = data.enabled
         source.updated_at = datetime.utcnow()
@@ -148,11 +153,13 @@ class DriveFolderCreate(BaseModel):
     folderId: str
     title: str
     category: str = "general"
+    workspace: Optional[str] = None
 
 
 class DriveFolderUpdate(BaseModel):
     title: Optional[str] = None
     category: Optional[str] = None
+    workspace: Optional[str] = None
     enabled: Optional[bool] = None
 
 
@@ -184,6 +191,7 @@ async def add_drive_folder(data: DriveFolderCreate):
             folder_id=data.folderId,
             title=data.title,
             category=data.category,
+            workspace=data.workspace,
         )
         db.add(folder)
         await db.commit()
@@ -206,6 +214,8 @@ async def update_drive_folder(folder_record_id: str, data: DriveFolderUpdate):
             folder.title = data.title
         if data.category is not None:
             folder.category = data.category
+        if data.workspace is not None:
+            folder.workspace = data.workspace
         if data.enabled is not None:
             folder.enabled = data.enabled
         folder.updated_at = datetime.utcnow()

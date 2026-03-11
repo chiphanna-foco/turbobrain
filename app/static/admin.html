@@ -389,14 +389,45 @@
         <div class="tabs">
             <button class="tab active" data-tab="sources">Knowledge Sources</button>
             <button class="tab" data-tab="simulator">Test Simulator</button>
-            <button class="tab" data-tab="intercom">Intercom</button>
             <button class="tab" data-tab="elevenlabs">ElevenLabs</button>
         </div>
 
         <!-- Knowledge Sources Panel -->
         <div id="sources" class="panel active">
+
+            <!-- Intercom Workspaces (top of sources) -->
+            <div style="margin-bottom: 30px; padding-bottom: 24px; border-bottom: 2px solid #e5e7eb;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div class="section-title">Intercom Help Center</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-outline btn-sm" onclick="syncAllIntercom()">Sync All Now</button>
+                        <button class="btn btn-primary btn-sm" onclick="toggleIntercomForm()">+ Add Workspace</button>
+                    </div>
+                </div>
+                <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 12px;">
+                    Published Help Center articles are synced automatically every 24 hours into the knowledge base.
+                </p>
+                <div id="intercom-add-form" style="display: none; margin-bottom: 16px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                        <div class="form-group" style="flex: 1; min-width: 140px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Workspace Name</label>
+                            <input type="text" id="intercom-name" placeholder="e.g. TurboTenant">
+                        </div>
+                        <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Access Token</label>
+                            <input type="password" id="intercom-token" placeholder="dG9rOi...">
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="addIntercomWorkspace()" style="white-space: nowrap;">Add & Sync</button>
+                        <button class="btn btn-secondary btn-sm" onclick="toggleIntercomForm()" style="white-space: nowrap;">Cancel</button>
+                    </div>
+                    <div id="intercom-add-status" style="margin-top: 8px; font-size: 0.85rem;"></div>
+                </div>
+                <div id="intercom-sync-status" style="margin-bottom: 8px; font-size: 0.85rem;"></div>
+                <div id="intercom-workspaces-list"></div>
+            </div>
+
             <div class="section-header">
-                <span class="section-title">Knowledge Sources</span>
+                <span class="section-title">Knowledge Documents</span>
                 <button class="refresh-link" onclick="loadSources()">Refresh</button>
             </div>
             <div id="sources-list"></div>
@@ -436,6 +467,16 @@
                                 <option value="showings">Showings</option>
                                 <option value="escalations">Escalations</option>
                                 <option value="guidelines">Guidelines</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="min-width: 130px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Brand</label>
+                            <select id="gdoc-workspace" style="padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; width: 100%;">
+                                <option value="">General (All)</option>
+                                <option value="TurboTenant">TurboTenant</option>
+                                <option value="Rentler">Rentler</option>
+                                <option value="TenantCloud">TenantCloud</option>
+                                <option value="REI Hub">REI Hub</option>
                             </select>
                         </div>
                         <button class="btn btn-primary btn-sm" onclick="addGoogleDoc()" style="white-space: nowrap;">Add & Sync</button>
@@ -485,6 +526,16 @@
                                 <option value="guidelines">Guidelines</option>
                             </select>
                         </div>
+                        <div class="form-group" style="min-width: 130px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Brand</label>
+                            <select id="dfolder-workspace" style="padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; width: 100%;">
+                                <option value="">General (All)</option>
+                                <option value="TurboTenant">TurboTenant</option>
+                                <option value="Rentler">Rentler</option>
+                                <option value="TenantCloud">TenantCloud</option>
+                                <option value="REI Hub">REI Hub</option>
+                            </select>
+                        </div>
                         <button class="btn btn-primary btn-sm" onclick="addDriveFolder()" style="white-space: nowrap;">Add & Sync</button>
                         <button class="btn btn-secondary btn-sm" onclick="toggleDriveFolderForm()" style="white-space: nowrap;">Cancel</button>
                     </div>
@@ -514,9 +565,18 @@
                 Enter a customer message to test keyword-based suggestions: instant answers and knowledge base results.
             </p>
 
-            <div class="test-search-row" style="margin-bottom: 20px;">
-                <div class="form-group">
+            <div class="test-search-row" style="margin-bottom: 20px; flex-wrap: wrap;">
+                <div class="form-group" style="flex: 2; min-width: 200px;">
                     <input type="text" id="sim-query" placeholder="Enter a customer message to search...">
+                </div>
+                <div class="form-group" style="min-width: 160px; margin-bottom: 0;">
+                    <select id="sim-workspace" style="padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; width: 100%; height: 38px;">
+                        <option value="">All Brands</option>
+                        <option value="TurboTenant">TurboTenant</option>
+                        <option value="Rentler">Rentler</option>
+                        <option value="TenantCloud">TenantCloud</option>
+                        <option value="REI Hub">REI Hub</option>
+                    </select>
                 </div>
                 <button class="btn btn-purple" onclick="runSuggestionsSearch()" id="sim-run-btn">Search</button>
             </div>
@@ -530,44 +590,6 @@
                     <div id="sim-suggestions-content"></div>
                 </div>
             </div>
-        </div>
-
-        <!-- Intercom Panel -->
-        <div id="intercom" class="panel">
-            <div class="section-header">
-                <div class="section-title">Intercom Help Center Sync</div>
-                <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-outline btn-sm" onclick="syncAllIntercom()">Sync All Now</button>
-                    <button class="refresh-link" onclick="loadIntercomWorkspaces()">Refresh</button>
-                </div>
-            </div>
-            <p style="font-size: 0.9rem; color: #6b7280; margin-bottom: 20px;">
-                Connect Intercom workspaces to automatically sync published Help Center articles into the knowledge base every 24 hours.
-            </p>
-
-            <!-- Add workspace form -->
-            <div id="intercom-add-form" style="display: none; margin-bottom: 20px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
-                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
-                    <div class="form-group" style="flex: 1; min-width: 140px; margin-bottom: 0;">
-                        <label style="font-size: 0.8rem;">Workspace Name</label>
-                        <input type="text" id="intercom-name" placeholder="e.g. TurboTenant">
-                    </div>
-                    <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
-                        <label style="font-size: 0.8rem;">Access Token</label>
-                        <input type="password" id="intercom-token" placeholder="dG9rOi...">
-                    </div>
-                    <button class="btn btn-primary btn-sm" onclick="addIntercomWorkspace()" style="white-space: nowrap;">Add & Sync</button>
-                    <button class="btn btn-secondary btn-sm" onclick="toggleIntercomForm()" style="white-space: nowrap;">Cancel</button>
-                </div>
-                <div id="intercom-add-status" style="margin-top: 8px; font-size: 0.85rem;"></div>
-            </div>
-
-            <div style="margin-bottom: 16px;">
-                <button class="btn btn-primary btn-sm" onclick="toggleIntercomForm()">+ Add Workspace</button>
-            </div>
-
-            <div id="intercom-sync-status" style="margin-bottom: 8px; font-size: 0.85rem;"></div>
-            <div id="intercom-workspaces-list"></div>
         </div>
 
         <!-- ElevenLabs Panel -->
@@ -956,6 +978,7 @@
                         <thead>
                             <tr style="border-bottom: 2px solid #e5e7eb; text-align: left;">
                                 <th style="padding: 8px 6px;">Title</th>
+                                <th style="padding: 8px 6px;">Brand</th>
                                 <th style="padding: 8px 6px;">Category</th>
                                 <th style="padding: 8px 6px;">Last Synced</th>
                                 <th style="padding: 8px 6px;">Status</th>
@@ -968,6 +991,9 @@
                                     <td style="padding: 8px 6px;">
                                         <div style="font-weight: 500;">${escapeHtml(s.title)}</div>
                                         <div style="font-size: 0.75rem; color: #9ca3af; font-family: monospace;">${escapeHtml(s.googleDocId).slice(0, 20)}...</div>
+                                    </td>
+                                    <td style="padding: 8px 6px;">
+                                        ${s.workspace ? `<span style="background: #ede9fe; color: #5b21b6; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">${escapeHtml(s.workspace)}</span>` : '<span style="color: #9ca3af; font-size: 0.8rem;">—</span>'}
                                     </td>
                                     <td style="padding: 8px 6px;">
                                         <span style="background: #f3f4f6; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">${escapeHtml(s.category)}</span>
@@ -1009,6 +1035,7 @@
             const url = document.getElementById('gdoc-url').value.trim();
             const title = document.getElementById('gdoc-title').value.trim();
             const category = document.getElementById('gdoc-category').value;
+            const workspace = document.getElementById('gdoc-workspace').value || null;
             const statusDiv = document.getElementById('gdoc-add-status');
 
             if (!url) { statusDiv.innerHTML = '<span style="color: #dc2626;">Please enter a Google Docs URL.</span>'; return; }
@@ -1020,7 +1047,7 @@
                 const res = await fetch(`${API_BASE}/api/google-docs`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, title, category }),
+                    body: JSON.stringify({ url, title, category, workspace }),
                 });
 
                 if (!res.ok) {
@@ -1107,6 +1134,7 @@
                         <thead>
                             <tr style="border-bottom: 2px solid #e5e7eb; text-align: left;">
                                 <th style="padding: 8px 6px;">Title</th>
+                                <th style="padding: 8px 6px;">Brand</th>
                                 <th style="padding: 8px 6px;">Category</th>
                                 <th style="padding: 8px 6px;">Docs Found</th>
                                 <th style="padding: 8px 6px;">Last Synced</th>
@@ -1120,6 +1148,9 @@
                                     <td style="padding: 8px 6px;">
                                         <div style="font-weight: 500;">${escapeHtml(f.title)}</div>
                                         <div style="font-size: 0.75rem; color: #9ca3af; font-family: monospace;">${escapeHtml(f.folderId).slice(0, 20)}...</div>
+                                    </td>
+                                    <td style="padding: 8px 6px;">
+                                        ${f.workspace ? `<span style="background: #ede9fe; color: #5b21b6; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">${escapeHtml(f.workspace)}</span>` : '<span style="color: #9ca3af; font-size: 0.8rem;">—</span>'}
                                     </td>
                                     <td style="padding: 8px 6px;">
                                         <span style="background: #f3f4f6; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">${escapeHtml(f.category)}</span>
@@ -1162,6 +1193,7 @@
             const url = document.getElementById('dfolder-url').value.trim();
             const title = document.getElementById('dfolder-title').value.trim();
             const category = document.getElementById('dfolder-category').value;
+            const workspace = document.getElementById('dfolder-workspace').value || null;
             const statusDiv = document.getElementById('dfolder-add-status');
 
             if (!url) { statusDiv.innerHTML = '<span style="color: #dc2626;">Please enter a Google Drive folder URL.</span>'; return; }
@@ -1173,7 +1205,7 @@
                 const res = await fetch(`${API_BASE}/api/drive-folders`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, title, category }),
+                    body: JSON.stringify({ url, title, category, workspace }),
                 });
 
                 if (!res.ok) {
@@ -1281,7 +1313,10 @@
                     html += `<div style="font-weight: 500; margin-top: 12px; margin-bottom: 8px;">Knowledge Base:</div>`;
                     html += kbResults.map(r => `
                         <div class="result-item">
-                            <div class="result-title">${escapeHtml(r.title || 'Untitled')}</div>
+                            <div class="result-title">
+                                ${escapeHtml(r.title || 'Untitled')}
+                                ${r.workspace ? `<span style="margin-left: 8px; background: #ede9fe; color: #5b21b6; padding: 1px 7px; border-radius: 10px; font-size: 0.75rem; font-weight: 500;">${escapeHtml(r.workspace)}</span>` : ''}
+                            </div>
                             <div class="result-content">${escapeHtml((r.content || '').slice(0, 300))}</div>
                             ${r.relevance_score ? `<div class="result-score">${Math.round(r.relevance_score * 100)}% match</div>` : ''}
                         </div>
@@ -1311,7 +1346,9 @@
             document.getElementById('sim-suggestions-content').innerHTML = '';
 
             try {
-                const suggestionsUrl = `${API_BASE}/api/search?query=${encodeURIComponent(query)}`;
+                const workspace = document.getElementById('sim-workspace').value;
+                const wsParam = workspace ? `&workspace=${encodeURIComponent(workspace)}` : '';
+                const suggestionsUrl = `${API_BASE}/api/search?query=${encodeURIComponent(query)}${wsParam}`;
                 const suggestionsRes = await fetch(suggestionsUrl);
 
                 if (!suggestionsRes.ok) {
@@ -1339,7 +1376,10 @@
                     suggestionsHtml += `<div style="font-weight: 500; margin-top: 12px; margin-bottom: 8px;">Knowledge Results (${kbResults.length}):</div>`;
                     suggestionsHtml += kbResults.map(r => `
                         <div class="result-item">
-                            <div class="result-title">${escapeHtml(r.title || 'Untitled')}</div>
+                            <div class="result-title">
+                                ${escapeHtml(r.title || 'Untitled')}
+                                ${r.workspace ? `<span style="margin-left: 8px; background: #ede9fe; color: #5b21b6; padding: 1px 7px; border-radius: 10px; font-size: 0.75rem; font-weight: 500;">${escapeHtml(r.workspace)}</span>` : ''}
+                            </div>
                             <div class="result-content">${escapeHtml((r.content || '').slice(0, 300))}</div>
                             ${r.relevance_score ? `<div class="result-score">${Math.round(r.relevance_score * 100)}% match</div>` : ''}
                         </div>
