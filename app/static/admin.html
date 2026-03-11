@@ -609,6 +609,53 @@
                 <div id="dfolder-table"></div>
             </div>
 
+            <!-- Manual Content Paste (macros, snippets, custom answers) -->
+            <div style="margin-bottom: 30px; padding-bottom: 24px; border-bottom: 2px solid #e5e7eb;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div class="section-title">Manual Content (Macros, Snippets, Custom Answers)</div>
+                    <button class="btn btn-primary btn-sm" onclick="toggleManualForm()">+ Add Content</button>
+                </div>
+                <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 12px;">
+                    Paste macros, saved replies, custom answers, or any content that isn't available via API. Each entry becomes a searchable KB document.
+                </p>
+                <div id="manual-add-form" style="display: none; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;">
+                        <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Title / Name</label>
+                            <input type="text" id="manual-title" placeholder="e.g. Refund Policy Macro">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 140px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Type</label>
+                            <select id="manual-category">
+                                <option value="macro">Macro / Saved Reply</option>
+                                <option value="snippet">Snippet</option>
+                                <option value="custom-answer">Custom Answer</option>
+                                <option value="general">General</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 140px; margin-bottom: 0;">
+                            <label style="font-size: 0.8rem;">Brand (optional)</label>
+                            <select id="manual-workspace">
+                                <option value="">All brands</option>
+                                <option value="TurboTenant">TurboTenant</option>
+                                <option value="Rentler">Rentler</option>
+                                <option value="TenantCloud">TenantCloud</option>
+                                <option value="REI Hub">REI Hub</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label style="font-size: 0.8rem;">Content (paste macro/snippet text here)</label>
+                        <textarea id="manual-content" placeholder="Paste the full content here..." style="min-height: 120px; font-family: monospace; font-size: 0.82rem;"></textarea>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button class="btn btn-primary btn-sm" onclick="addManualContent()">Save to KB</button>
+                        <button class="btn btn-secondary btn-sm" onclick="toggleManualForm()">Cancel</button>
+                        <span id="manual-status" style="font-size: 0.82rem;"></span>
+                    </div>
+                </div>
+            </div>
+
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                 <div class="section-title" style="margin-bottom: 15px;">Test Search</div>
                 <div class="test-search-row">
@@ -2021,8 +2068,9 @@
                             </div>
                             ${ws.lastError ? `<div style="font-size: 0.8rem; color: #dc2626; margin-top: 4px;">${escapeHtml(ws.lastError)}</div>` : ''}
                         </div>
-                        <div style="display: flex; gap: 8px;">
-                            <button class="btn btn-outline btn-sm" onclick="syncIntercomWorkspace('${ws.id}', this)">Sync Now</button>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="btn btn-outline btn-sm" onclick="syncIntercomWorkspace('${ws.id}', this)">Sync Articles</button>
+                            <button class="btn btn-outline btn-sm" style="color: #6366f1; border-color: #c7d2fe;" onclick="syncIntercomConversations('${ws.id}', this)">Sync Conversations</button>
                             <button class="btn btn-secondary btn-sm" onclick="deleteIntercomWorkspace('${ws.id}', '${escapeJs(ws.name)}')">Remove</button>
                         </div>
                     </div>
@@ -2071,6 +2119,65 @@
                 statusDiv.innerHTML = `<span style="color: #16a34a;">Synced ${data.workspace}: ${data.synced} new, ${data.updated} updated</span>`;
                 setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
                 loadIntercomWorkspaces();
+            } catch (e) {
+                statusDiv.innerHTML = `<span style="color: #dc2626;">${e.message}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = original;
+            }
+        }
+
+        // ============== MANUAL CONTENT (MACROS / SNIPPETS) ==============
+
+        function toggleManualForm() {
+            const form = document.getElementById('manual-add-form');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            if (form.style.display === 'block') {
+                document.getElementById('manual-title').focus();
+            }
+        }
+
+        async function addManualContent() {
+            const title = document.getElementById('manual-title').value.trim();
+            const content = document.getElementById('manual-content').value.trim();
+            const category = document.getElementById('manual-category').value;
+            const workspace = document.getElementById('manual-workspace').value;
+            const statusEl = document.getElementById('manual-status');
+
+            if (!title || !content) { statusEl.textContent = 'Title and content are required.'; return; }
+            statusEl.textContent = 'Saving...';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/knowledge`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, content, category, workspace: workspace || null }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to save');
+                statusEl.innerHTML = `<span style="color: #16a34a;">Saved!</span>`;
+                document.getElementById('manual-title').value = '';
+                document.getElementById('manual-content').value = '';
+                setTimeout(() => { statusEl.textContent = ''; toggleManualForm(); }, 1500);
+                loadSources();
+            } catch (e) {
+                statusEl.innerHTML = `<span style="color: #dc2626;">${e.message}</span>`;
+            }
+        }
+
+        async function syncIntercomConversations(id, btn) {
+            const original = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Syncing...';
+            const statusDiv = document.getElementById('intercom-sync-status');
+            statusDiv.textContent = 'Syncing conversations (this may take 30-60s)...';
+            try {
+                const res = await fetch(`${API_BASE}/api/intercom/workspaces/${id}/sync-conversations`, { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Sync failed');
+                statusDiv.innerHTML = `<span style="color: #16a34a;">Conversations synced: ${data.synced} new, ${data.updated} updated (${data.total_closed} closed conversations pulled)</span>`;
+                setTimeout(() => { statusDiv.innerHTML = ''; }, 8000);
+                loadSources();
             } catch (e) {
                 statusDiv.innerHTML = `<span style="color: #dc2626;">${e.message}</span>`;
             } finally {

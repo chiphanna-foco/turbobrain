@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from ..models.database import async_session, IntercomWorkspace, KnowledgeDocument
-from ..services.intercom_sync import sync_workspace, sync_all_intercom
+from ..services.intercom_sync import sync_workspace, sync_all_intercom, sync_conversations
 
 router = APIRouter()
 
@@ -97,6 +97,23 @@ async def sync_one(workspace_id: str):
 
     try:
         return await sync_workspace(ws)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/api/intercom/workspaces/{workspace_id}/sync-conversations")
+async def sync_workspace_conversations(workspace_id: str, limit: int = 500):
+    """Sync closed conversations for a workspace into the knowledge base."""
+    async with async_session() as db:
+        result = await db.execute(
+            select(IntercomWorkspace).where(IntercomWorkspace.id == workspace_id)
+        )
+        ws = result.scalar_one_or_none()
+        if not ws:
+            raise HTTPException(status_code=404, detail="Workspace not found")
+
+    try:
+        return await sync_conversations(ws, limit=limit)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
