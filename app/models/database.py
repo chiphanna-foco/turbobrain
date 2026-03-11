@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from sqlalchemy import Column, String, Text, DateTime, Float, Boolean, JSON, create_engine, select, func
+from sqlalchemy import Column, String, Text, DateTime, Float, Boolean, JSON, create_engine, select, func, text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from datetime import datetime
@@ -253,9 +253,32 @@ logger.info(f"Database: {'PostgreSQL' if _is_postgres else 'SQLite'}")
 
 
 async def init_db():
-    """Initialize the database tables."""
+    """Initialize the database tables and run any pending column migrations."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Add new columns to existing tables (idempotent ALTER TABLE migrations)
+    if _is_postgres:
+        migrations = [
+            "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS workspace VARCHAR(100)",
+            "ALTER TABLE google_doc_sources ADD COLUMN IF NOT EXISTS workspace VARCHAR(100)",
+            "ALTER TABLE google_drive_folders ADD COLUMN IF NOT EXISTS workspace VARCHAR(100)",
+        ]
+        async with engine.begin() as conn:
+            for sql in migrations:
+                await conn.execute(text(sql))
+    else:
+        # SQLite: check and add columns individually
+        async with engine.begin() as conn:
+            for table, col in [
+                ("knowledge_documents", "workspace"),
+                ("google_doc_sources", "workspace"),
+                ("google_drive_folders", "workspace"),
+            ]:
+                result = await conn.execute(text(f"PRAGMA table_info({table})"))
+                cols = [row[1] for row in result.fetchall()]
+                if col not in cols:
+                    await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} VARCHAR(100)"))
 
 
 async def import_knowledge_from_files():
