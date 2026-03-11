@@ -9,7 +9,7 @@ from pathlib import Path
 import logging
 import uuid
 
-from ..models.database import async_session, KnowledgeDocument
+from ..models.database import async_session, KnowledgeDocument, InstantAnswer
 
 logger = logging.getLogger(__name__)
 
@@ -352,6 +352,20 @@ async def elevenlabs_sync_status():
     """Get ElevenLabs sync status."""
     from ..integrations.elevenlabs_sync import get_elevenlabs_sync_status
     return await get_elevenlabs_sync_status()
+
+
+@router.delete("/instant-answers-all")
+async def delete_all_instant_answers():
+    """Delete all instant answers from the database."""
+    async with async_session() as db:
+        result = await db.execute(select(InstantAnswer))
+        answers = result.scalars().all()
+        count = len(answers)
+        for a in answers:
+            await db.delete(a)
+        await db.commit()
+    logger.info(f"Deleted all {count} instant answers")
+    return {"deleted": count}
 
 
 @router.get("/elevenlabs/verify")
