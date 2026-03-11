@@ -25,7 +25,7 @@ STOP_WORDS = {
 }
 
 
-def extract_snippet(content: str, keywords: List[str], max_length: int = 200) -> str:
+def extract_snippet(content: str, keywords: List[str], max_length: int = 1500) -> str:
     """Extract a relevant snippet from content based on keywords."""
     content_lower = content.lower()
 
@@ -38,8 +38,8 @@ def extract_snippet(content: str, keywords: List[str], max_length: int = 200) ->
     if best_pos == len(content):
         return content[:max_length] + "..." if len(content) > max_length else content
 
-    start = max(0, best_pos - 50)
-    end = min(len(content), best_pos + max_length - 50)
+    start = max(0, best_pos - 100)
+    end = min(len(content), best_pos + max_length - 100)
     snippet = content[start:end]
 
     if start > 0:
@@ -148,7 +148,8 @@ async def search_knowledge_base(
                     "category": doc.category,
                     "workspace": doc.workspace,
                     "tags": doc.tags or [],
-                    "content": match["snippet"],
+                    "content": match["snippet"],        # relevant excerpt
+                    "full_content": doc.content,        # complete document text
                     "relevance_score": min(1.0, match["score"] / 10.0),
                     "matched_words": match["matched_words"],
                 })

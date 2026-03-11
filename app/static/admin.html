@@ -312,7 +312,7 @@
             font-size: 0.9rem;
         }
         .result-title { font-weight: 600; color: #1a1a1a; }
-        .result-content { color: #6b7280; margin-top: 4px; font-size: 0.85rem; }
+        .result-content { color: #6b7280; margin-top: 4px; font-size: 0.85rem; white-space: pre-wrap; line-height: 1.5; }
         .result-score { color: #9ca3af; font-size: 0.8rem; }
 
         .stats-row {
@@ -1531,7 +1531,7 @@
                     html += instantAnswers.map(a => `
                         <div class="result-item">
                             <div class="result-title">${escapeHtml(a.key)}</div>
-                            <div class="result-content">${escapeHtml((a.answer || '').slice(0, 300))}</div>
+                            <div class="result-content">${escapeHtml((a.answer || '').slice(0, 800))}</div>
                         </div>
                     `).join('');
                 }
@@ -1545,7 +1545,7 @@
                                 ${r.workspace ? `<span style="margin-left: 8px; background: #ede9fe; color: #5b21b6; padding: 1px 7px; border-radius: 10px; font-size: 0.75rem; font-weight: 500;">${escapeHtml(r.workspace)}</span>` : ''}
                                 ${(r.tags || []).map(t => `<span style="margin-left: 4px; background: #dbeafe; color: #1e40af; padding: 1px 7px; border-radius: 10px; font-size: 0.72rem;">${escapeHtml(t)}</span>`).join('')}
                             </div>
-                            <div class="result-content">${escapeHtml((r.content || '').slice(0, 300))}</div>
+                            <div class="result-content">${escapeHtml((r.content || '').slice(0, 800))}</div>
                             ${r.relevance_score ? `<div class="result-score">${Math.round(r.relevance_score * 100)}% match</div>` : ''}
                         </div>
                     `).join('');
@@ -1598,7 +1598,7 @@
                     suggestionsHtml += instantAnswers.map(a => `
                         <div class="result-item">
                             <div class="result-title">${escapeHtml(a.key || a.answer || 'Answer')}</div>
-                            <div class="result-content">${escapeHtml((a.answer || a.suggested_response || '').slice(0, 300))}</div>
+                            <div class="result-content">${escapeHtml((a.answer || a.suggested_response || '').slice(0, 800))}</div>
                         </div>
                     `).join('');
                 }
@@ -1611,7 +1611,7 @@
                                 ${r.workspace ? `<span style="margin-left: 8px; background: #ede9fe; color: #5b21b6; padding: 1px 7px; border-radius: 10px; font-size: 0.75rem; font-weight: 500;">${escapeHtml(r.workspace)}</span>` : ''}
                                 ${(r.tags || []).map(t => `<span style="margin-left: 4px; background: #dbeafe; color: #1e40af; padding: 1px 7px; border-radius: 10px; font-size: 0.72rem;">${escapeHtml(t)}</span>`).join('')}
                             </div>
-                            <div class="result-content">${escapeHtml((r.content || '').slice(0, 300))}</div>
+                            <div class="result-content">${escapeHtml((r.content || '').slice(0, 800))}</div>
                             ${r.relevance_score ? `<div class="result-score">${Math.round(r.relevance_score * 100)}% match</div>` : ''}
                         </div>
                     `).join('');
