@@ -324,7 +324,8 @@
         <div class="header-title">TurboBrain</div>
         <div class="header-sub">Internal Knowledge Assistant</div>
     </div>
-    <div class="header-right">
+    <div class="header-right" style="display:flex;align-items:center;gap:12px;">
+        <button onclick="startNewChat()" style="background:none;border:1px solid #e5e7eb;border-radius:8px;padding:5px 12px;font-size:0.8rem;color:#374151;cursor:pointer;" title="Start a new conversation">+ New Chat</button>
         <a href="/admin">Admin ↗</a>
     </div>
 </div>
@@ -366,6 +367,7 @@
 <script>
     const API_BASE = '';
     let isLoading = false;
+    let conversationId = null;
 
     function autoResize(el) {
         el.style.height = 'auto';
@@ -521,11 +523,12 @@
             const res = await fetch(`${API_BASE}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text }),
+                body: JSON.stringify({ message: text, conversation_id: conversationId }),
             });
             const data = await res.json();
             removeTypingIndicator();
             if (res.ok) {
+                conversationId = data.conversation_id;
                 appendAIBubble(data.message_id, data.answer, data.sources);
             } else {
                 appendAIBubble('err-' + Date.now(), data.detail || 'Something went wrong.', []);
@@ -552,6 +555,25 @@
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+    }
+
+    function startNewChat() {
+        conversationId = null;
+        const messages = document.getElementById('messages');
+        messages.innerHTML = `
+            <div class="empty-state" id="empty-state">
+                <div class="empty-icon">💡</div>
+                <h2>Ask anything about your knowledge base</h2>
+                <p>Get instant answers from your connected sources — Confluence, Google Docs, Intercom, and more.</p>
+                <div class="suggestion-chips">
+                    <div class="chip" onclick="sendSuggestion(this.textContent)">How do I reset a password?</div>
+                    <div class="chip" onclick="sendSuggestion(this.textContent)">What is the cancellation policy?</div>
+                    <div class="chip" onclick="sendSuggestion(this.textContent)">How does billing work?</div>
+                    <div class="chip" onclick="sendSuggestion(this.textContent)">Escalation process</div>
+                </div>
+            </div>
+        `;
+        document.getElementById('user-input').focus();
     }
 
     // Auto-focus

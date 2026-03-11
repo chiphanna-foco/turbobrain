@@ -392,6 +392,7 @@
             <button class="tab" data-tab="simulator">Test Simulator</button>
             <button class="tab" data-tab="elevenlabs">ElevenLabs</button>
             <button class="tab" data-tab="chat-feedback">Chat Feedback</button>
+            <button class="tab" data-tab="correction-rules">Correction Rules</button>
         </div>
 
         <!-- Knowledge Sources Panel -->
@@ -789,6 +790,31 @@
                 <div class="empty-state">Loading...</div>
             </div>
         </div>
+
+        <!-- Correction Rules Panel -->
+        <div id="correction-rules" class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <div class="section-title">Correction Rules</div>
+                    <p style="font-size: 0.85rem; color: #6b7280; margin-top: 4px;">Rules injected into Claude's system prompt — active immediately, no code deploy needed.</p>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="toggleRuleForm()">+ Add Rule</button>
+            </div>
+
+            <!-- Add rule form (hidden by default) -->
+            <div id="rule-form-wrap" style="display: none; background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <div class="form-group">
+                    <label>Rule Text</label>
+                    <textarea id="new-rule-text" rows="3" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; font-family: inherit; resize: vertical;" placeholder="e.g. Always refer billing questions to billing@company.com — never give refund amounts."></textarea>
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button class="btn btn-secondary btn-sm" onclick="toggleRuleForm()">Cancel</button>
+                    <button class="btn btn-primary btn-sm" onclick="saveRule()">Save Rule</button>
+                </div>
+            </div>
+
+            <div id="rules-list"><div class="empty-state">Loading...</div></div>
+        </div>
     </div>
 
     <!-- Create/Edit Answer Modal -->
@@ -849,6 +875,7 @@
                 tab.classList.add('active');
                 document.getElementById(tab.dataset.tab).classList.add('active');
                 if (tab.dataset.tab === 'chat-feedback') loadChatFeedback();
+                if (tab.dataset.tab === 'correction-rules') loadCorrectionRules();
             });
         });
 
@@ -2347,6 +2374,91 @@
             }
         }
 
+        // ============== CORRECTION RULES ==============
+
+        function toggleRuleForm() {
+            const wrap = document.getElementById('rule-form-wrap');
+            wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+            if (wrap.style.display === 'block') {
+                document.getElementById('new-rule-text').focus();
+            }
+        }
+
+        async function saveRule() {
+            const text = document.getElementById('new-rule-text').value.trim();
+            if (!text) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/correction-rules`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rule_text: text }),
+                });
+                if (!res.ok) throw new Error(await res.text());
+                document.getElementById('new-rule-text').value = '';
+                document.getElementById('rule-form-wrap').style.display = 'none';
+                loadCorrectionRules();
+            } catch (e) {
+                alert('Error saving rule: ' + e.message);
+            }
+        }
+
+        async function toggleRule(id, currentEnabled) {
+            try {
+                await fetch(`${API_BASE}/api/correction-rules/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: !currentEnabled }),
+                });
+                loadCorrectionRules();
+            } catch (e) {
+                alert('Error updating rule: ' + e.message);
+            }
+        }
+
+        async function deleteRule(id) {
+            if (!confirm('Delete this correction rule?')) return;
+            try {
+                await fetch(`${API_BASE}/api/correction-rules/${id}`, { method: 'DELETE' });
+                loadCorrectionRules();
+            } catch (e) {
+                alert('Error deleting rule: ' + e.message);
+            }
+        }
+
+        async function loadCorrectionRules() {
+            try {
+                const res = await fetch(`${API_BASE}/api/correction-rules`);
+                const data = await res.json();
+                const list = document.getElementById('rules-list');
+                const rules = data.rules || [];
+                if (rules.length === 0) {
+                    list.innerHTML = '<div class="empty-state">No correction rules yet. Add one to customize Claude\'s behavior.</div>';
+                    return;
+                }
+                list.innerHTML = rules.map(r => `
+                    <div class="answer-card" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+                        <div style="flex: 1;">
+                            <p style="font-size: 0.9rem; color: #111827; line-height: 1.6;">${escapeHtml(r.rule_text)}</p>
+                            <div style="margin-top: 8px;">
+                                <span style="font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; ${r.enabled ? 'background: #d1fae5; color: #065f46;' : 'background: #f3f4f6; color: #6b7280;'}">
+                                    ${r.enabled ? 'Active' : 'Disabled'}
+                                </span>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                            <button class="btn btn-sm btn-outline" onclick="toggleRule('${r.id}', ${r.enabled})">
+                                ${r.enabled ? 'Disable' : 'Enable'}
+                            </button>
+                            <button class="btn btn-sm" style="background: #dc2626; color: white; border: none;" onclick="deleteRule('${r.id}')">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                document.getElementById('rules-list').innerHTML =
+                    `<div class="empty-state" style="color: #dc2626;">Error loading rules: ${e.message}</div>`;
+            }
+        }
+
         function initDashboard() {
             loadSources();
             loadGoogleDocs();
@@ -2356,6 +2468,7 @@
             loadElevenLabsStatus();
             loadInstantAnswers();
             loadChatFeedback();
+            loadCorrectionRules();
         }
 
         if (sessionStorage.getItem('turbobrain_auth') === '1') {

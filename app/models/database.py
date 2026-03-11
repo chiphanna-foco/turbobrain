@@ -268,6 +268,7 @@ class ChatFeedback(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     message_id = Column(String(36), nullable=False, index=True)
+    conversation_id = Column(String(36), nullable=True, index=True)
     question = Column(Text, nullable=False)
     answer = Column(Text, nullable=False)
     sources = Column(JSON, default=list)
@@ -279,6 +280,7 @@ class ChatFeedback(Base):
         return {
             "id": self.id,
             "message_id": self.message_id,
+            "conversation_id": self.conversation_id,
             "question": self.question,
             "answer": self.answer,
             "sources": self.sources or [],
@@ -286,6 +288,39 @@ class ChatFeedback(Base):
             "notes": self.notes,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class CorrectionRule(Base):
+    """Admin-managed rules injected into Claude's system prompt for chat."""
+
+    __tablename__ = "correction_rules"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    rule_text = Column(Text, nullable=False)
+    enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "rule_text": self.rule_text,
+            "enabled": self.enabled,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ConversationMessage(Base):
+    """Stores individual messages for multi-turn chat conversations."""
+
+    __tablename__ = "conversation_messages"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    conversation_id = Column(String(36), nullable=False, index=True)
+    role = Column(String(10), nullable=False)   # "user" | "assistant"
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class UnansweredQuestion(Base):
@@ -333,6 +368,7 @@ async def init_db():
             "ALTER TABLE google_drive_folders ADD COLUMN IF NOT EXISTS workspace VARCHAR(100)",
             "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS tags JSONB",
             "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS source_url TEXT",
+            "ALTER TABLE chat_feedback ADD COLUMN IF NOT EXISTS conversation_id VARCHAR(36)",
         ]
         async with engine.begin() as conn:
             for sql in migrations:
@@ -346,6 +382,7 @@ async def init_db():
                 ("google_drive_folders", "workspace", "VARCHAR(100)"),
                 ("knowledge_documents", "tags", "JSON"),
                 ("knowledge_documents", "source_url", "TEXT"),
+                ("chat_feedback", "conversation_id", "VARCHAR(36)"),
             ]:
                 result = await conn.execute(text(f"PRAGMA table_info({table})"))
                 cols = [row[1] for row in result.fetchall()]

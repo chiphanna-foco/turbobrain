@@ -22,6 +22,7 @@ from .api.google_docs_api import router as google_docs_router
 from .api.intercom_api import router as intercom_router
 from .api.confluence_api import router as confluence_router
 from .api.chat_api import router as chat_router
+from .api.correction_rules_api import router as correction_rules_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -94,6 +95,7 @@ app.include_router(google_docs_router)
 app.include_router(intercom_router)
 app.include_router(confluence_router)
 app.include_router(chat_router)
+app.include_router(correction_rules_router)
 app.include_router(admin_router)
 
 # Static files for admin dashboard

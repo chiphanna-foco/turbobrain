@@ -1,4 +1,4 @@
-"""Chat API: question answering with KB context and feedback collection."""
+"""Chat API: multi-turn question answering with KB context, correction rules, and feedback."""
 from __future__ import annotations
 
 import uuid
@@ -6,10 +6,13 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
-from sqlalchemy import select
+from sqlalchemy import select, desc
 
 from anthropic import AsyncAnthropic
-from ..models.database import async_session, KnowledgeDocument, InstantAnswer, ChatFeedback
+from ..models.database import (
+    async_session, KnowledgeDocument, InstantAnswer,
+    ChatFeedback, ConversationMessage, CorrectionRule,
+)
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -40,11 +43,70 @@ class FeedbackRequest(BaseModel):
     notes: Optional[str] = None
 
 
+def _extract_best_snippet(content: str, keywords: list[str], max_chars: int = 1200) -> str:
+    """Return the most relevant portion of a document using a sliding window approach."""
+    if not keywords or len(content) <= max_chars:
+        return content[:max_chars]
+
+    window_size = 400
+    step = 150
+    content_lower = content.lower()
+
+    windows: list[tuple[int, int, int]] = []  # (score, start, end)
+    pos = 0
+    while pos < len(content):
+        end = min(pos + window_size, len(content))
+        window_text = content_lower[pos:end]
+        score = sum(window_text.count(kw) for kw in keywords)
+        if score > 0:
+            windows.append((score, pos, end))
+        pos += step
+
+    if not windows:
+        return content[:max_chars]
+
+    windows.sort(key=lambda x: x[0], reverse=True)
+
+    # Pick top 2 non-overlapping windows
+    selected: list[tuple[int, int]] = []
+    for score, start, end in windows:
+        overlaps = any(
+            not (end <= s or start >= e) for s, e in selected
+        )
+        if not overlaps:
+            selected.append((start, end))
+        if len(selected) == 2:
+            break
+
+    selected.sort()
+    parts = [content[s:e].strip() for s, e in selected]
+    result = " ... ".join(parts)
+    return result[:max_chars]
+
+
+async def _rewrite_query_if_short(message: str, client: AsyncAnthropic) -> str:
+    """Expand short queries via Haiku to improve keyword search recall."""
+    words = [w for w in message.lower().split() if w not in STOP_WORDS and len(w) > 2]
+    if len(words) >= 4:
+        return message
+
+    try:
+        resp = await client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=80,
+            system="Rewrite the user's short question as a more specific search query (1 sentence, no fluff). Return only the rewritten query.",
+            messages=[{"role": "user", "content": message}],
+        )
+        return resp.content[0].text.strip()
+    except Exception:
+        return message
+
+
 async def _search_kb(query: str):
-    """Keyword-search instant answers and KB docs. Returns (ia_list, doc_list)."""
+    """Weighted keyword search across instant answers and KB docs. Returns (ia_list, doc_list, keywords)."""
     words = [w for w in query.lower().split() if len(w) > 2 and w not in STOP_WORDS]
     if not words:
-        return [], []
+        return [], [], words
 
     # Instant answers
     ia_matches = []
@@ -56,7 +118,7 @@ async def _search_kb(query: str):
             answer_text = (ia.answer or "").lower()
             for w in words:
                 if w in key_text:
-                    score += 5
+                    score += 10
                 if w in answer_text:
                     score += answer_text.count(w)
             if score > 0:
@@ -73,26 +135,90 @@ async def _search_kb(query: str):
             content_lower = doc.content.lower()
             for w in words:
                 if w in title_lower:
-                    score += 3
+                    score += 5
                 if w in content_lower:
                     score += content_lower.count(w)
             if score > 0:
                 doc_matches.append((doc, score))
     doc_matches.sort(key=lambda x: x[1], reverse=True)
 
-    return [m[0] for m in ia_matches[:3]], [m[0] for m in doc_matches[:5]]
+    # Adaptive result count based on top score
+    top_score = doc_matches[0][1] if doc_matches else 0
+    if top_score >= 20:
+        n_docs, n_ias = 2, 2
+    elif top_score >= 10:
+        n_docs, n_ias = 3, 3
+    else:
+        n_docs, n_ias = 5, 3
+
+    return (
+        [m[0] for m in ia_matches[:n_ias]],
+        [m[0] for m in doc_matches[:n_docs]],
+        words,
+    )
+
+
+async def _load_conversation_history(conversation_id: str, limit: int = 8) -> list[dict]:
+    """Return last N turns of a conversation in chronological order."""
+    async with async_session() as db:
+        result = await db.execute(
+            select(ConversationMessage)
+            .where(ConversationMessage.conversation_id == conversation_id)
+            .order_by(desc(ConversationMessage.created_at))
+            .limit(limit)
+        )
+        messages = result.scalars().all()
+    return [{"role": m.role, "content": m.content} for m in reversed(messages)]
+
+
+async def _load_correction_rules() -> list[str]:
+    """Return enabled correction rule texts."""
+    async with async_session() as db:
+        result = await db.execute(
+            select(CorrectionRule).where(CorrectionRule.enabled == True)
+        )
+        return [r.rule_text for r in result.scalars().all()]
+
+
+def _build_system_prompt(correction_rules: list[str]) -> str:
+    base = (
+        "You are TurboBrain, an internal knowledge base assistant for a support team.\n"
+        "1. Answer using ONLY the context provided. Do not invent facts.\n"
+        "2. If the context doesn't contain a reliable answer, say exactly: "
+        "\"I don't have a reliable answer for that in the knowledge base.\"\n"
+        "3. Reference which article your answer comes from when possible.\n"
+        "4. Be concise. Bullets are fine for steps or lists.\n"
+        "5. This is a multi-turn conversation — use conversation history for context.\n"
+        "6. Format your response in plain text (no markdown)."
+    )
+    if correction_rules:
+        rules_block = "\n\n[Organization-Specific Rules — follow these over general guidelines]:\n"
+        rules_block += "\n".join(f"- {r}" for r in correction_rules)
+        return base + rules_block
+    return base
 
 
 @router.post("")
 async def chat(body: ChatRequest):
-    """Answer a question using KB context + Claude."""
+    """Answer a question using KB context + Claude Sonnet with conversation history."""
     message = body.message.strip()
     if not message:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-    ia_list, doc_list = await _search_kb(message)
+    conversation_id = body.conversation_id or str(uuid.uuid4())
 
-    # Build context string
+    client = AsyncAnthropic(api_key=settings.anthropic_api_key) if settings.anthropic_api_key else None
+
+    # Optionally expand short queries
+    search_query = message
+    if client:
+        search_query = await _rewrite_query_if_short(message, client)
+        if search_query != message:
+            logger.info(f"Query rewritten: '{message}' → '{search_query}'")
+
+    ia_list, doc_list, query_words = await _search_kb(search_query)
+
+    # Build context string using density-aware snippet extraction
     context_parts = []
     if ia_list:
         context_parts.append("### Quick Reference")
@@ -106,46 +232,60 @@ async def chat(body: ChatRequest):
     if doc_list:
         context_parts.append("\n### Knowledge Base Articles")
         for doc in doc_list:
+            snippet = _extract_best_snippet(doc.content, query_words)
             context_parts.append(f"\n**{doc.title}**")
-            context_parts.append(doc.content[:2000])
+            context_parts.append(snippet)
             sources.append({"title": doc.title, "source_url": doc.source_url})
 
     context = "\n".join(context_parts) if context_parts else "No relevant articles found in the knowledge base."
 
-    # Generate answer with Claude
-    answer = "I couldn't find relevant information to answer that question. Try rephrasing or check the knowledge base directly."
+    # Load conversation history and correction rules
+    history = await _load_conversation_history(conversation_id)
+    correction_rules = await _load_correction_rules()
+    system_prompt = _build_system_prompt(correction_rules)
 
-    if settings.anthropic_api_key:
+    answer = "I don't have a reliable answer for that in the knowledge base."
+
+    if client:
         try:
-            client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+            # Build messages array: history + current user turn
+            claude_messages = history + [
+                {"role": "user", "content": f"Context:\n{context}\n\n---\nQuestion: {message}"}
+            ]
             response = await client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=800,
-                system=(
-                    "You are a helpful internal knowledge base assistant. "
-                    "Answer the question using ONLY the provided context. "
-                    "Be concise and direct. If the context doesn't contain the answer, say so honestly — do not make up information. "
-                    "Format your response in plain text (no markdown)."
-                ),
-                messages=[{
-                    "role": "user",
-                    "content": f"Context:\n{context}\n\n---\nQuestion: {message}",
-                }],
+                model="claude-sonnet-4-6",
+                max_tokens=1000,
+                system=system_prompt,
+                messages=claude_messages,
             )
             answer = response.content[0].text
         except Exception as e:
             logger.error(f"Claude error: {e}")
-            # Fall back to top KB snippet
             if doc_list:
-                answer = doc_list[0].content[:600]
+                answer = _extract_best_snippet(doc_list[0].content, query_words, max_chars=600)
             elif ia_list:
                 answer = ia_list[0].answer
     else:
-        # No Claude key — return best snippet
         if ia_list:
             answer = ia_list[0].answer
         elif doc_list:
-            answer = doc_list[0].content[:600]
+            answer = _extract_best_snippet(doc_list[0].content, query_words, max_chars=600)
+
+    # Persist conversation turns
+    async with async_session() as db:
+        db.add(ConversationMessage(
+            id=str(uuid.uuid4()),
+            conversation_id=conversation_id,
+            role="user",
+            content=message,
+        ))
+        db.add(ConversationMessage(
+            id=str(uuid.uuid4()),
+            conversation_id=conversation_id,
+            role="assistant",
+            content=answer,
+        ))
+        await db.commit()
 
     # Persist for feedback tracking
     message_id = str(uuid.uuid4())
@@ -153,13 +293,14 @@ async def chat(body: ChatRequest):
         db.add(ChatFeedback(
             id=str(uuid.uuid4()),
             message_id=message_id,
+            conversation_id=conversation_id,
             question=message,
             answer=answer,
             sources=sources,
         ))
         await db.commit()
 
-    return {"message_id": message_id, "answer": answer, "sources": sources}
+    return {"message_id": message_id, "conversation_id": conversation_id, "answer": answer, "sources": sources}
 
 
 @router.post("/feedback")
