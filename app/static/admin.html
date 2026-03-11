@@ -391,6 +391,7 @@
             <button class="tab" data-tab="instant-answers">Instant Answers</button>
             <button class="tab" data-tab="simulator">Test Simulator</button>
             <button class="tab" data-tab="elevenlabs">ElevenLabs</button>
+            <button class="tab" data-tab="chat-feedback">Chat Feedback</button>
         </div>
 
         <!-- Knowledge Sources Panel -->
@@ -713,6 +714,34 @@
             </div>
             <div id="answers-list"></div>
         </div>
+
+        <!-- Chat Feedback Panel -->
+        <div id="chat-feedback" class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <div class="section-title">Chat Feedback</div>
+                    <p style="font-size: 0.85rem; color: #6b7280; margin-top: 4px;">Questions and feedback from the internal chat assistant.</p>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <select id="feedback-filter" onchange="loadChatFeedback()" style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.82rem; height: 32px;">
+                        <option value="">All</option>
+                        <option value="negative">Negative only</option>
+                        <option value="positive">Positive only</option>
+                        <option value="pending">No feedback yet</option>
+                    </select>
+                    <button class="btn btn-outline btn-sm" onclick="loadChatFeedback()">Refresh</button>
+                    <a href="/chat" target="_blank" class="btn btn-primary btn-sm" style="text-decoration: none;">Open Chat ↗</a>
+                </div>
+            </div>
+
+            <!-- Stats bar -->
+            <div id="feedback-stats" style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;"></div>
+
+            <!-- Feedback list -->
+            <div id="feedback-list">
+                <div class="empty-state">Loading...</div>
+            </div>
+        </div>
     </div>
 
     <!-- Create/Edit Answer Modal -->
@@ -772,6 +801,7 @@
                 document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
                 tab.classList.add('active');
                 document.getElementById(tab.dataset.tab).classList.add('active');
+                if (tab.dataset.tab === 'chat-feedback') loadChatFeedback();
             });
         });
 
@@ -2128,6 +2158,88 @@
             }
         }
 
+        // ============== CHAT FEEDBACK ==============
+
+        async function loadChatFeedback() {
+            const listDiv = document.getElementById('feedback-list');
+            const statsDiv = document.getElementById('feedback-stats');
+            const filter = document.getElementById('feedback-filter').value;
+            listDiv.innerHTML = '<div class="empty-state">Loading...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/chat/feedback?limit=200`);
+                const data = await res.json();
+                let records = data.feedback || [];
+
+                // Stats
+                const total = records.length;
+                const positive = records.filter(r => r.feedback === 'positive').length;
+                const negative = records.filter(r => r.feedback === 'negative').length;
+                const pending = records.filter(r => !r.feedback).length;
+                statsDiv.innerHTML = `
+                    <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 16px; font-size: 0.82rem; color: #374151;">
+                        <strong>${total}</strong> total
+                    </div>
+                    <div style="background: #d1fae5; border: 1px solid #6ee7b7; border-radius: 8px; padding: 8px 16px; font-size: 0.82rem; color: #065f46;">
+                        👍 <strong>${positive}</strong> positive
+                    </div>
+                    <div style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 8px 16px; font-size: 0.82rem; color: #991b1b;">
+                        👎 <strong>${negative}</strong> negative
+                    </div>
+                    <div style="background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 16px; font-size: 0.82rem; color: #6b7280;">
+                        ⏳ <strong>${pending}</strong> no feedback
+                    </div>
+                `;
+
+                // Apply filter
+                if (filter === 'negative') records = records.filter(r => r.feedback === 'negative');
+                else if (filter === 'positive') records = records.filter(r => r.feedback === 'positive');
+                else if (filter === 'pending') records = records.filter(r => !r.feedback);
+
+                if (records.length === 0) {
+                    listDiv.innerHTML = '<div class="empty-state">No feedback entries match this filter.</div>';
+                    return;
+                }
+
+                listDiv.innerHTML = records.map(r => {
+                    const feedbackBadge = r.feedback === 'positive'
+                        ? '<span style="background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem;">👍 Helpful</span>'
+                        : r.feedback === 'negative'
+                        ? '<span style="background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem;">👎 Not helpful</span>'
+                        : '<span style="background: #f3f4f6; color: #9ca3af; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem;">No feedback</span>';
+
+                    const sourcesHtml = (r.sources || []).length > 0
+                        ? `<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;">${(r.sources).map(s =>
+                            s.source_url
+                                ? `<a href="${escapeHtml(s.source_url)}" target="_blank" style="font-size: 0.72rem; color: #6366f1; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; padding: 1px 8px; text-decoration: none;">${escapeHtml(s.title)} ↗</a>`
+                                : `<span style="font-size: 0.72rem; color: #9ca3af; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1px 8px;">${escapeHtml(s.title)}</span>`
+                          ).join('')}</div>`
+                        : '';
+
+                    const notesHtml = r.notes
+                        ? `<div style="margin-top: 8px; padding: 8px 12px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; font-size: 0.82rem; color: #92400e;">
+                               <strong>Feedback notes:</strong> ${escapeHtml(r.notes)}
+                           </div>`
+                        : '';
+
+                    return `
+                        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+                                <div style="font-size: 0.75rem; color: #9ca3af;">${new Date(r.created_at).toLocaleString()}</div>
+                                ${feedbackBadge}
+                            </div>
+                            <div style="font-weight: 600; font-size: 0.9rem; color: #111827; margin-bottom: 6px;">Q: ${escapeHtml(r.question)}</div>
+                            <div style="font-size: 0.85rem; color: #4b5563; line-height: 1.5; border-left: 3px solid #e5e7eb; padding-left: 10px;">${escapeHtml((r.answer || '').slice(0, 400))}${(r.answer || '').length > 400 ? '...' : ''}</div>
+                            ${sourcesHtml}
+                            ${notesHtml}
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                listDiv.innerHTML = `<div class="empty-state" style="color: #dc2626;">Error loading feedback: ${e.message}</div>`;
+            }
+        }
+
         function initDashboard() {
             loadSources();
             loadGoogleDocs();
@@ -2136,6 +2248,7 @@
             loadConfluenceSpaces();
             loadElevenLabsStatus();
             loadInstantAnswers();
+            loadChatFeedback();
         }
 
         if (sessionStorage.getItem('turbobrain_auth') === '1') {

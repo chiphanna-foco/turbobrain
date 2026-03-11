@@ -21,6 +21,7 @@ from .api.instant_answers_api import router as instant_answers_router
 from .api.google_docs_api import router as google_docs_router
 from .api.intercom_api import router as intercom_router
 from .api.confluence_api import router as confluence_router
+from .api.chat_api import router as chat_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -92,6 +93,7 @@ app.include_router(instant_answers_router)
 app.include_router(google_docs_router)
 app.include_router(intercom_router)
 app.include_router(confluence_router)
+app.include_router(chat_router)
 app.include_router(admin_router)
 
 # Static files for admin dashboard
@@ -123,6 +125,15 @@ async def admin_page():
     if not os.path.exists(admin_path):
         raise HTTPException(status_code=404, detail="Admin page not found")
     return FileResponse(admin_path, media_type="text/html")
+
+
+@app.get("/chat")
+async def chat_page():
+    """Serve the chat frontend."""
+    chat_path = os.path.join(static_dir, "chat.html")
+    if not os.path.exists(chat_path):
+        raise HTTPException(status_code=404, detail="Chat page not found")
+    return FileResponse(chat_path, media_type="text/html")
 
 
 @app.get("/health")

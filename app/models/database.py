@@ -261,6 +261,33 @@ class ConfluenceSpace(Base):
         }
 
 
+class ChatFeedback(Base):
+    """Stores chat Q&A pairs and user feedback."""
+
+    __tablename__ = "chat_feedback"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    message_id = Column(String(36), nullable=False, index=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    sources = Column(JSON, default=list)
+    feedback = Column(String(20), nullable=True)   # "positive" | "negative" | None
+    notes = Column(Text, nullable=True)             # free-text when negative
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "message_id": self.message_id,
+            "question": self.question,
+            "answer": self.answer,
+            "sources": self.sources or [],
+            "feedback": self.feedback,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class UnansweredQuestion(Base):
     """Tracks questions the system couldn't answer."""
 
