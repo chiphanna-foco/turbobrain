@@ -1116,25 +1116,31 @@
                     body: JSON.stringify({ name, domain, email, apiToken, spaceKey, workspace }),
                 });
                 if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.detail || 'Failed to add');
+                    let msg = `Server error (${res.status})`;
+                    try { const err = await res.json(); msg = err.detail || msg; } catch {}
+                    throw new Error(msg);
                 }
                 const data = await res.json();
                 const sr = data.syncResult || {};
-                statusDiv.innerHTML = `<span style="color: #059669;">Added! Synced ${sr.synced || 0} new, ${sr.updated || 0} updated of ${sr.total_pages || 0} pages.</span>`;
+                if (sr.error) {
+                    statusDiv.innerHTML = `<span style="color: #f59e0b;">Space added but sync failed: ${escapeHtml(sr.error)}</span>`;
+                    loadConfluenceSpaces();
+                } else {
+                    statusDiv.innerHTML = `<span style="color: #059669;">Added! Synced ${sr.synced || 0} new, ${sr.updated || 0} updated of ${sr.total_pages || 0} pages.</span>`;
 
-                document.getElementById('conf-name').value = '';
-                document.getElementById('conf-domain').value = '';
-                document.getElementById('conf-email').value = '';
-                document.getElementById('conf-token').value = '';
-                document.getElementById('conf-space-key').value = '';
+                    document.getElementById('conf-name').value = '';
+                    document.getElementById('conf-domain').value = '';
+                    document.getElementById('conf-email').value = '';
+                    document.getElementById('conf-token').value = '';
+                    document.getElementById('conf-space-key').value = '';
 
-                setTimeout(() => {
-                    document.getElementById('confluence-add-form').style.display = 'none';
-                    statusDiv.innerHTML = '';
-                }, 3000);
+                    setTimeout(() => {
+                        document.getElementById('confluence-add-form').style.display = 'none';
+                        statusDiv.innerHTML = '';
+                    }, 3000);
 
-                loadConfluenceSpaces();
+                    loadConfluenceSpaces();
+                }
             } catch (e) {
                 statusDiv.innerHTML = `<span style="color: #dc2626;">Error: ${e.message}</span>`;
             }

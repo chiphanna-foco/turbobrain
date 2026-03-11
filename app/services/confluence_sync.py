@@ -42,6 +42,25 @@ def _file_path_for(space_id: str, page_id: str) -> str:
 
 async def sync_space(space: ConfluenceSpace) -> dict:
     """Fetch all published pages from one Confluence space and upsert into KnowledgeDocument."""
+    try:
+        return await _sync_space_inner(space)
+    except Exception as e:
+        logger.error(f"Confluence sync failed [{space.name}]: {e}")
+        try:
+            async with async_session() as db:
+                result = await db.execute(select(ConfluenceSpace).where(ConfluenceSpace.id == space.id))
+                sp = result.scalar_one()
+                sp.last_sync_status = "error"
+                sp.last_error = str(e)[:500]
+                sp.last_synced_at = datetime.utcnow()
+                await db.commit()
+        except Exception:
+            pass
+        return {"space": space.name, "error": str(e)}
+
+
+async def _sync_space_inner(space: ConfluenceSpace) -> dict:
+    """Inner sync logic — called by sync_space which wraps it in try/except."""
     headers = {
         "Authorization": _basic_auth(space.email, space.api_token),
         "Accept": "application/json",
@@ -66,7 +85,8 @@ async def sync_space(space: ConfluenceSpace) -> dict:
                     "limit": limit,
                 },
             )
-            resp.raise_for_status()
+            if not resp.is_success:
+                raise ValueError(f"Confluence API returned {resp.status_code}: {resp.text[:200]}")
             data = resp.json()
             results = data.get("results", [])
             pages.extend(results)
